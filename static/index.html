@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Little Library Atlas</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="hero">
+        <div class="hero-copy">
+          <p class="eyebrow">Neighborhood catalog</p>
+          <h1>Little Library Atlas</h1>
+          <p class="lede">Snap a shelf, map a neighborhood, and help readers find the closest copy.</p>
+          <div class="hero-stats">
+            <article class="stat-card">
+              <span class="stat-label">Libraries indexed</span>
+              <strong id="libraryCount">0</strong>
+            </article>
+            <article class="stat-card">
+              <span class="stat-label">Books indexed</span>
+              <strong id="bookCount">0</strong>
+            </article>
+            <article class="stat-card">
+              <span class="stat-label">Vision model</span>
+              <strong id="modelName">offline</strong>
+            </article>
+          </div>
+        </div>
+        <aside class="hero-map">
+          <div class="map-surface">
+            <div class="map-pin pin-a"></div>
+            <div class="map-pin pin-b"></div>
+            <div class="map-pin pin-c"></div>
+            <p>Capture a sidewalk library, review the extracted shelf list, then save it into a shared searchable atlas.</p>
+          </div>
+        </aside>
+      </header>
+
+      <main class="workspace">
+        <section class="panel capture-panel">
+          <div class="panel-heading">
+            <p class="panel-kicker">1. Capture library</p>
+            <h2>Upload or take a photo</h2>
+          </div>
+
+          <form id="captureForm" class="stack">
+            <label class="file-drop" for="photoInput">
+              <input id="photoInput" name="photo" type="file" accept="image/*" capture="environment" />
+              <span class="file-title">Choose a sidewalk library photo</span>
+              <span class="file-hint">JPEG works best when EXIF GPS is available.</span>
+            </label>
+
+            <div class="capture-actions">
+              <button type="button" class="secondary-button" id="useCaptureLocation">Use my location</button>
+              <span class="microcopy" id="captureLocationStatus">No browser location attached yet.</span>
+            </div>
+
+            <button type="submit" class="primary-button">Analyze Photo</button>
+          </form>
+
+          <div class="preview-frame">
+            <img id="photoPreview" alt="Selected library preview" hidden />
+            <div id="previewPlaceholder" class="preview-placeholder">
+              <p>Photo preview appears here before analysis.</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel analysis-panel">
+          <div class="panel-heading">
+            <p class="panel-kicker">2. Review extraction</p>
+            <h2>Confirm geolocation and books</h2>
+          </div>
+
+          <div id="analysisStatus" class="callout muted">Upload a photo to create a draft record.</div>
+
+          <form id="libraryDraftForm" class="stack" hidden>
+            <div class="field-grid">
+              <label>
+                <span>Library name</span>
+                <input id="libraryName" type="text" />
+              </label>
+              <label>
+                <span>Location source</span>
+                <input id="locationSource" type="text" />
+              </label>
+              <label>
+                <span>Latitude</span>
+                <input id="latitude" type="number" step="any" />
+              </label>
+              <label>
+                <span>Longitude</span>
+                <input id="longitude" type="number" step="any" />
+              </label>
+              <label>
+                <span>Location confidence</span>
+                <input id="locationConfidence" type="number" min="0" max="1" step="0.01" />
+              </label>
+              <label>
+                <span>Accuracy meters</span>
+                <input id="accuracyMeters" type="number" min="0" step="0.1" />
+              </label>
+            </div>
+
+            <label>
+              <span>Library description</span>
+              <textarea id="libraryDescription" rows="3"></textarea>
+            </label>
+
+            <label>
+              <span>Photo summary</span>
+              <textarea id="photoSummary" rows="2"></textarea>
+            </label>
+
+            <label>
+              <span>Place clues</span>
+              <input id="placeClues" type="text" placeholder="Street sign, mural, business, address..." />
+            </label>
+
+            <div class="books-header">
+              <h3>Books found</h3>
+              <button type="button" class="secondary-button compact" id="addBookRow">Add book row</button>
+            </div>
+
+            <div class="table-shell">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Title</th>
+                    <th>Author</th>
+                    <th>ISBN</th>
+                    <th>Genre</th>
+                    <th>Format</th>
+                    <th>Condition</th>
+                    <th>Publisher</th>
+                    <th>Year</th>
+                    <th>Confidence</th>
+                    <th>Notes</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="booksTableBody"></tbody>
+              </table>
+            </div>
+
+            <button type="submit" class="primary-button">Save Library To Atlas</button>
+          </form>
+        </section>
+
+        <section class="panel search-panel">
+          <div class="panel-heading">
+            <p class="panel-kicker">3. Find nearby copies</p>
+            <h2>Search the shared atlas</h2>
+          </div>
+
+          <form id="searchForm" class="stack">
+            <label>
+              <span>Book title, author, or ISBN</span>
+              <input id="searchQuery" type="text" placeholder="Parable of the Sower, Octavia Butler, 978..." />
+            </label>
+
+            <div class="field-grid slim">
+              <label>
+                <span>Your latitude</span>
+                <input id="searchLatitude" type="number" step="any" />
+              </label>
+              <label>
+                <span>Your longitude</span>
+                <input id="searchLongitude" type="number" step="any" />
+              </label>
+              <label>
+                <span>Radius (miles)</span>
+                <input id="searchRadius" type="number" min="1" step="1" value="25" />
+              </label>
+            </div>
+
+            <div class="capture-actions">
+              <button type="button" class="secondary-button" id="useSearchLocation">Use my location</button>
+              <span class="microcopy" id="searchLocationStatus">Distance ranking works best with your location.</span>
+            </div>
+
+            <button type="submit" class="primary-button">Find Closest Match</button>
+          </form>
+
+          <div id="searchResults" class="results-list">
+            <div class="result-empty">
+              Search results will appear here with the nearest matching library first.
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <template id="bookRowTemplate">
+      <tr>
+        <td><input data-field="title" type="text" /></td>
+        <td><input data-field="author" type="text" /></td>
+        <td><input data-field="isbn" type="text" /></td>
+        <td><input data-field="genre" type="text" /></td>
+        <td><input data-field="format" type="text" /></td>
+        <td><input data-field="condition" type="text" /></td>
+        <td><input data-field="publisher" type="text" /></td>
+        <td><input data-field="published_year" type="text" /></td>
+        <td><input data-field="confidence" type="number" min="0" max="1" step="0.01" /></td>
+        <td><input data-field="notes" type="text" /></td>
+        <td><button type="button" class="ghost-button remove-row">Remove</button></td>
+      </tr>
+    </template>
+
+    <script src="/app.js" defer></script>
+  </body>
+</html>

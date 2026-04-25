@@ -1,0 +1,168 @@
+{
+  "library_name": "Blue Little Library",
+  "library_description": "A bright blue sidewalk little library with a mixed shelf of travel guides, history, fiction, health books, and DVDs.",
+  "place_clues": [
+    "bright blue painted library box",
+    "photo has EXIF GPS",
+    "no readable street signs visible"
+  ],
+  "verify_query": "Fiber Fueled",
+  "books": [
+    {
+      "title": "Lincoln on the Verge",
+      "author": "Ted Widmer",
+      "isbn": "",
+      "publisher": "",
+      "published_year": "",
+      "genre": "History / Biography",
+      "format": "Paperback",
+      "condition": "Used-good",
+      "confidence": 0.99,
+      "notes": "Spine is clear."
+    },
+    {
+      "title": "Catching Fire",
+      "author": "Suzanne Collins",
+      "isbn": "",
+      "publisher": "Scholastic Press",
+      "published_year": "2009",
+      "genre": "Young Adult / Dystopian Fiction",
+      "format": "Hardcover or trade paperback",
+      "condition": "Used-good",
+      "confidence": 0.99,
+      "notes": "Title and Collins surname are visible."
+    },
+    {
+      "title": "Fiber Fueled",
+      "author": "Will Bulsiewicz, MD, MSCI",
+      "isbn": "",
+      "publisher": "",
+      "published_year": "",
+      "genre": "Health / Nutrition",
+      "format": "Hardcover",
+      "condition": "Used-good",
+      "confidence": 0.99,
+      "notes": "Title and author are clear."
+    },
+    {
+      "title": "Frommer's Paris 2004",
+      "author": "",
+      "isbn": "",
+      "publisher": "Frommer's",
+      "published_year": "2004",
+      "genre": "Travel",
+      "format": "Paperback",
+      "condition": "Used-good",
+      "confidence": 0.94,
+      "notes": "Guidebook title is clear; author is not readable."
+    },
+    {
+      "title": "Athena the Brain",
+      "author": "Joan Holub; Suzanne Williams",
+      "isbn": "",
+      "publisher": "",
+      "published_year": "",
+      "genre": "Middle Grade / Mythology",
+      "format": "Paperback",
+      "condition": "Used-good",
+      "confidence": 0.84,
+      "notes": "Title is partly visible; authors inferred from known title."
+    },
+    {
+      "title": "Florence & Tuscany",
+      "author": "",
+      "isbn": "",
+      "publisher": "DK",
+      "published_year": "",
+      "genre": "Travel",
+      "format": "Guidebook",
+      "condition": "Used-good",
+      "confidence": 0.9,
+      "notes": "Likely a DK travel guide."
+    },
+    {
+      "title": "Italy",
+      "author": "",
+      "isbn": "",
+      "publisher": "DK",
+      "published_year": "",
+      "genre": "Travel",
+      "format": "Guidebook",
+      "condition": "Used-good",
+      "confidence": 0.98,
+      "notes": "Large-format DK travel guide."
+    },
+    {
+      "title": "Gods & Kings",
+      "author": "Lynn Austin",
+      "isbn": "",
+      "publisher": "",
+      "published_year": "",
+      "genre": "Historical Fiction / Biblical Fiction",
+      "format": "Paperback or hardcover",
+      "condition": "Used-good",
+      "confidence": 0.97,
+      "notes": "Author surname Austin is visible."
+    },
+    {
+      "title": "Appomattox",
+      "author": "Elizabeth R. Varon",
+      "isbn": "",
+      "publisher": "",
+      "published_year": "",
+      "genre": "History / Civil War",
+      "format": "Hardcover",
+      "condition": "Used-good",
+      "confidence": 0.97,
+      "notes": "Title and author surname are visible."
+    },
+    {
+      "title": "The Harvest",
+      "author": "Joyner",
+      "isbn": "",
+      "publisher": "",
+      "published_year": "",
+      "genre": "",
+      "format": "Paperback",
+      "condition": "Used-good",
+      "confidence": 0.43,
+      "notes": "Title is fairly readable; author is uncertain."
+    },
+    {
+      "title": "Goddess Girls",
+      "author": "",
+      "isbn": "",
+      "publisher": "",
+      "published_year": "",
+      "genre": "Middle Grade / Mythology",
+      "format": "Paperback",
+      "condition": "Used-good",
+      "confidence": 0.5,
+      "notes": "Series title visible; specific book title unclear."
+    },
+    {
+      "title": "Rodney Yee's Strength Building Yoga",
+      "author": "Rodney Yee",
+      "isbn": "",
+      "publisher": "Gaiam",
+      "published_year": "",
+      "genre": "Fitness / Yoga",
+      "format": "DVD",
+      "condition": "Used-good",
+      "confidence": 0.98,
+      "notes": "DVD, included because the atlas can index non-book media found on the shelf."
+    },
+    {
+      "title": "The Perfect Man",
+      "author": "",
+      "isbn": "",
+      "publisher": "Universal",
+      "published_year": "",
+      "genre": "Film",
+      "format": "DVD",
+      "condition": "Used-good",
+      "confidence": 0.97,
+      "notes": "DVD, included because the atlas can index non-book media found on the shelf."
+    }
+  ]
+}
