@@ -28,7 +28,9 @@ class AtlasViewModel(application: Application) : AndroidViewModel(application) {
     var searchRadiusMiles by mutableStateOf("25")
     var searchResults by mutableStateOf<List<SearchResult>>(emptyList())
         private set
-    var statusMessage by mutableStateOf("Pick a photo or import the demo shelf to start cataloging.")
+    var centralServerUrl by mutableStateOf(repository.getCentralServerUrl())
+        private set
+    var statusMessage by mutableStateOf("Pick a photo, review the books, and sync the shelf to the central website.")
         private set
     var busy by mutableStateOf(false)
         private set
@@ -102,6 +104,11 @@ class AtlasViewModel(application: Application) : AndroidViewModel(application) {
         )
     }
 
+    fun updateCentralServerUrl(value: String) {
+        centralServerUrl = value
+        repository.saveCentralServerUrl(value)
+    }
+
     fun addBook() {
         draft = draft.copy(books = draft.books + BookDraft())
     }
@@ -120,18 +127,44 @@ class AtlasViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun saveDraft() {
+        val draftToSave = draft
+        val serverUrl = centralServerUrl.trim()
         busy = true
-        statusMessage = "Saving library to the on-device atlas..."
+        statusMessage = if (serverUrl.isBlank()) {
+            "Saving library to the on-device atlas..."
+        } else {
+            "Saving locally and syncing to the central website..."
+        }
         viewModelScope.launch(Dispatchers.IO) {
             runCatching {
-                repository.saveLibrary(draft)
-            }.onSuccess {
+                val localId = repository.saveLibrary(draftToSave)
+                val syncMessage = if (serverUrl.isBlank()) {
+                    "Add a central website URL to sync future shelves."
+                } else {
+                    runCatching {
+                        repository.uploadContribution(serverUrl, draftToSave)
+                    }.fold(
+                        onSuccess = { result ->
+                            val countText = if (result.libraries != null && result.books != null) {
+                                " The website now has ${result.libraries} shelves and ${result.books} books."
+                            } else {
+                                ""
+                            }
+                            "Synced to the central website as library #${result.libraryId}.$countText"
+                        },
+                        onFailure = { error ->
+                            "Saved locally, but central sync failed: ${error.message ?: "unknown error"}"
+                        }
+                    )
+                }
+                SaveOutcome(localId, syncMessage)
+            }.onSuccess { outcome ->
                 withContext(Dispatchers.Main) {
                     refreshCatalog()
                     draft = LibraryDraft(books = listOf(BookDraft()))
                     selectedTab = 1
                     busy = false
-                    statusMessage = "Library saved. You can search it from the Atlas or Search tabs."
+                    statusMessage = "Library #${outcome.localId} saved locally. ${outcome.syncMessage}"
                 }
             }.onFailure { error ->
                 withContext(Dispatchers.Main) {
@@ -194,4 +227,9 @@ class AtlasViewModel(application: Application) : AndroidViewModel(application) {
         stats = repository.getStats()
         libraries = repository.getLibraries()
     }
+
+    private data class SaveOutcome(
+        val localId: Long,
+        val syncMessage: String,
+    )
 }

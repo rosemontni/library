@@ -239,7 +239,7 @@ private fun StatsRow(stats: CatalogStats) {
     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         SummaryPill(label = "Libraries", value = stats.libraries.toString())
         SummaryPill(label = "Books", value = stats.books.toString())
-        SummaryPill(label = "Mode", value = "Local-first")
+        SummaryPill(label = "Mode", value = "Central sync")
     }
 }
 
@@ -280,7 +280,7 @@ private fun CaptureScreen(
                 ) {
                     Text("Shelf intake", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
                     Text(
-                        "Import a shelf photo, keep the EXIF geotag when it exists, then finish the catalog details by hand.",
+                        "Import a shelf photo, keep the EXIF geotag when it exists, then sync the reviewed catalog to the website database.",
                         color = Color(0xFF55646D)
                     )
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -300,6 +300,18 @@ private fun CaptureScreen(
                         Spacer(Modifier.width(8.dp))
                         Text("Use device location")
                     }
+                    OutlinedTextField(
+                        value = viewModel.centralServerUrl,
+                        onValueChange = { viewModel.updateCentralServerUrl(it) },
+                        label = { Text("Central website URL") },
+                        placeholder = { Text("https://your-library-site.example") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                    )
+                    Text(
+                        "When a URL is set, Save keeps a phone copy and contributes this shelf to the central website.",
+                        color = Color(0xFF55646D)
+                    )
                 }
             }
         }
@@ -341,7 +353,7 @@ private fun CaptureScreen(
             ) {
                 Icon(Icons.Rounded.LibraryBooks, contentDescription = null)
                 Spacer(Modifier.width(8.dp))
-                Text("Save library to atlas")
+                Text(if (viewModel.centralServerUrl.isBlank()) "Save local draft" else "Save + sync to website")
             }
         }
     }
@@ -564,8 +576,8 @@ private fun AtlasScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text("On-device atlas", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                        Text("Everything here stays local until you decide to export or sync it.")
+                        Text("Phone copy", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                        Text("Saved shelves stay searchable here; the configured website keeps the central database.")
                     }
                     OutlinedButton(onClick = { viewModel.importDemoShelf() }, enabled = !viewModel.busy) {
                         Icon(Icons.Rounded.AutoAwesome, contentDescription = null)

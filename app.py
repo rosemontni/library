@@ -27,8 +27,8 @@ STATIC_DIR = BASE_DIR / "static"
 UPLOADS_DIR = DATA_DIR / "uploads"
 DB_PATH = DATA_DIR / "little_library_atlas.db"
 
-HOST = "127.0.0.1"
-PORT = 8000
+HOST = os.getenv("HOST", "127.0.0.1")
+PORT = int(os.getenv("PORT", "8000"))
 DEFAULT_RADIUS_MILES = 25.0
 MAX_IMAGE_BYTES = 25 * 1024 * 1024
 
@@ -229,6 +229,19 @@ def unique_upload_path(filename: str | None) -> Path:
     suffix = Path(filename or "capture.jpg").suffix.lower() or ".jpg"
     safe_suffix = suffix if len(suffix) <= 8 else ".jpg"
     return UPLOADS_DIR / f"{timestamp}-{uuid.uuid4().hex}{safe_suffix}"
+
+
+def save_uploaded_image(upload: dict[str, Any]) -> tuple[Path, str, str]:
+    image_bytes = upload.get("data") or b""
+    if not image_bytes:
+        raise ValueError("The uploaded photo is empty.")
+    if len(image_bytes) > MAX_IMAGE_BYTES:
+        raise ValueError("Please upload an image smaller than 25 MB.")
+
+    upload_path = unique_upload_path(upload.get("filename"))
+    upload_path.write_bytes(image_bytes)
+    photo_path = upload_path.relative_to(BASE_DIR).as_posix()
+    return upload_path, photo_path, f"/{photo_path}"
 
 
 def parse_json_body(handler: BaseHTTPRequestHandler) -> dict[str, Any]:
@@ -901,6 +914,9 @@ class LibraryAtlasHandler(BaseHTTPRequestHandler):
         if parsed.path == "/api/libraries":
             self.handle_save_library()
             return
+        if parsed.path in {"/api/mobile/libraries", "/api/contributions"}:
+            self.handle_mobile_library_upload()
+            return
         if parsed.path == "/api/search":
             self.handle_search()
             return
@@ -940,18 +956,7 @@ class LibraryAtlasHandler(BaseHTTPRequestHandler):
                 return
 
             image_bytes = upload["data"]
-            if not image_bytes:
-                self.send_json({"error": "The uploaded photo is empty."}, HTTPStatus.BAD_REQUEST)
-                return
-            if len(image_bytes) > MAX_IMAGE_BYTES:
-                self.send_json({"error": "Please upload an image smaller than 25 MB."}, HTTPStatus.BAD_REQUEST)
-                return
-
-            upload_path = unique_upload_path(upload.get("filename"))
-            upload_path.write_bytes(image_bytes)
-
-            photo_path = upload_path.relative_to(BASE_DIR).as_posix()
-            photo_url = f"/{photo_path}"
+            upload_path, _photo_path, photo_url = save_uploaded_image(upload)
             mime_type = upload.get("content_type") or mimetypes.guess_type(upload_path.name)[0] or "image/jpeg"
 
             browser_location = build_browser_location(fields)
@@ -974,6 +979,47 @@ class LibraryAtlasHandler(BaseHTTPRequestHandler):
 
             response_payload = build_analysis_response(upload_path.name, photo_url, location, model_output, warnings)
             self.send_json(response_payload)
+        except ValueError as error:
+            self.send_json({"error": str(error)}, HTTPStatus.BAD_REQUEST)
+        except Exception as error:  # pragma: no cover - defensive server guard
+            self.send_json({"error": f"Unexpected server error: {error}"}, HTTPStatus.INTERNAL_SERVER_ERROR)
+
+    def handle_mobile_library_upload(self) -> None:
+        try:
+            fields, files = parse_multipart_form_data(self)
+            payload_text = fields.get("payload")
+            if not payload_text:
+                self.send_json({"error": "A JSON payload field is required."}, HTTPStatus.BAD_REQUEST)
+                return
+
+            payload = json.loads(payload_text)
+            if not isinstance(payload, dict):
+                self.send_json({"error": "Payload must be a JSON object."}, HTTPStatus.BAD_REQUEST)
+                return
+
+            photo_url = None
+            upload = files.get("photo")
+            if upload and upload.get("data"):
+                _upload_path, photo_path, photo_url = save_uploaded_image(upload)
+                payload["photo_path"] = photo_path
+            else:
+                # Do not store device-local paths such as content:// URIs in the central database.
+                photo_path = str(payload.get("photo_path") or "")
+                if not photo_path.startswith("data/uploads/"):
+                    payload["photo_path"] = ""
+
+            library_id = insert_library(payload)
+            self.send_json(
+                {
+                    "status": "saved",
+                    "library_id": library_id,
+                    "photo_url": photo_url,
+                    "counts": get_counts(),
+                },
+                HTTPStatus.CREATED,
+            )
+        except json.JSONDecodeError:
+            self.send_json({"error": "Payload must be valid JSON."}, HTTPStatus.BAD_REQUEST)
         except ValueError as error:
             self.send_json({"error": str(error)}, HTTPStatus.BAD_REQUEST)
         except Exception as error:  # pragma: no cover - defensive server guard

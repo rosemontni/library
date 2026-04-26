@@ -39,6 +39,12 @@ data class CatalogStats(
     val books: Int = 0,
 )
 
+data class CentralUploadResult(
+    val libraryId: Long,
+    val libraries: Int? = null,
+    val books: Int? = null,
+)
+
 data class LibrarySummary(
     val id: Long,
     val name: String,

@@ -10,6 +10,9 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 import java.io.FileOutputStream
+import java.io.OutputStream
+import java.net.HttpURLConnection
+import java.net.URL
 import java.util.Locale
 import kotlin.math.atan2
 import kotlin.math.cos
@@ -18,6 +21,15 @@ import kotlin.math.sqrt
 
 class AtlasRepository(private val context: Context) {
     private val databaseHelper = AtlasDatabaseHelper(context)
+    private val preferences = context.getSharedPreferences("little_library_atlas", Context.MODE_PRIVATE)
+
+    fun getCentralServerUrl(): String {
+        return preferences.getString(PREF_CENTRAL_SERVER_URL, "").orEmpty()
+    }
+
+    fun saveCentralServerUrl(value: String) {
+        preferences.edit().putString(PREF_CENTRAL_SERVER_URL, value.trim()).apply()
+    }
 
     fun getStats(): CatalogStats {
         val db = databaseHelper.readableDatabase
@@ -126,6 +138,55 @@ class AtlasRepository(private val context: Context) {
             libraryId
         } finally {
             db.endTransaction()
+        }
+    }
+
+    fun uploadContribution(serverUrl: String, draft: LibraryDraft): CentralUploadResult {
+        val endpointBase = serverUrl.trim().trimEnd('/')
+        require(endpointBase.startsWith("http://") || endpointBase.startsWith("https://")) {
+            "Central website URL must start with http:// or https://."
+        }
+
+        val boundary = "----LittleLibraryAtlas${System.currentTimeMillis()}"
+        val connection = (URL("$endpointBase/api/mobile/libraries").openConnection() as HttpURLConnection).apply {
+            requestMethod = "POST"
+            connectTimeout = 15_000
+            readTimeout = 45_000
+            doOutput = true
+            setRequestProperty("Accept", "application/json")
+            setRequestProperty("Content-Type", "multipart/form-data; boundary=$boundary")
+        }
+
+        return try {
+            connection.outputStream.use { output ->
+                writeFormField(output, boundary, "payload", draft.toCentralPayload().toString())
+                draft.photoUri.takeIf { it.isNotBlank() }?.let { uriText ->
+                    writePhotoPart(output, boundary, Uri.parse(uriText))
+                }
+                output.writeUtf8("--$boundary--\r\n")
+            }
+
+            val responseCode = connection.responseCode
+            val responseText = if (responseCode in 200..299) {
+                connection.inputStream.bufferedReader().use { it.readText() }
+            } else {
+                connection.errorStream?.bufferedReader()?.use { it.readText() }.orEmpty()
+            }
+
+            if (responseCode !in 200..299) {
+                val message = runCatching { JSONObject(responseText).optString("error") }.getOrNull()
+                throw IllegalStateException(message?.takeIf { it.isNotBlank() } ?: "Central sync failed with HTTP $responseCode.")
+            }
+
+            val payload = JSONObject(responseText)
+            val counts = payload.optJSONObject("counts")
+            CentralUploadResult(
+                libraryId = payload.optLong("library_id"),
+                libraries = counts?.optInt("libraries"),
+                books = counts?.optInt("books"),
+            )
+        } finally {
+            connection.disconnect()
         }
     }
 
@@ -289,6 +350,69 @@ class AtlasRepository(private val context: Context) {
         )
     }
 
+    private fun LibraryDraft.toCentralPayload(): JSONObject {
+        val clues = JSONArray()
+        placeClues.split(",")
+            .map { it.trim() }
+            .filter { it.isNotBlank() }
+            .forEach { clues.put(it) }
+
+        val geolocation = JSONObject()
+            .putNullable("latitude", latitude.toDoubleOrNull())
+            .putNullable("longitude", longitude.toDoubleOrNull())
+            .put("source", locationSource.ifBlank { "manual" })
+            .put("confidence", locationConfidence.toDouble())
+            .putNullable("accuracy_meters", null)
+
+        val bookArray = JSONArray()
+        books.filter { it.title.isNotBlank() }.forEach { book ->
+            bookArray.put(
+                JSONObject()
+                    .put("title", book.title.trim())
+                    .put("author", book.author.trim())
+                    .put("isbn", book.isbn.trim())
+                    .put("publisher", book.publisher.trim())
+                    .put("published_year", book.publishedYear.trim())
+                    .put("genre", book.genre.trim())
+                    .put("format", book.format.trim())
+                    .put("condition", book.condition.trim())
+                    .put("confidence", book.confidence.toDouble())
+                    .put("notes", book.notes.trim())
+            )
+        }
+
+        return JSONObject()
+            .put("library_name", name.ifBlank { "Neighborhood Shelf" })
+            .put("library_description", description)
+            .put("photo_path", "")
+            .put("place_clues", clues)
+            .put("geolocation", geolocation)
+            .put("books", bookArray)
+    }
+
+    private fun writeFormField(output: OutputStream, boundary: String, name: String, value: String) {
+        output.writeUtf8("--$boundary\r\n")
+        output.writeUtf8("Content-Disposition: form-data; name=\"$name\"\r\n")
+        output.writeUtf8("Content-Type: application/json; charset=utf-8\r\n\r\n")
+        output.writeUtf8(value)
+        output.writeUtf8("\r\n")
+    }
+
+    private fun writePhotoPart(output: OutputStream, boundary: String, uri: Uri) {
+        val filename = displayName(uri)?.safeMultipartFilename()
+            ?: "library-photo-${System.currentTimeMillis()}.${guessExtension(uri)}"
+        val contentType = context.contentResolver.getType(uri)
+            ?: "image/${guessExtension(uri).ifBlank { "jpeg" }}"
+
+        output.writeUtf8("--$boundary\r\n")
+        output.writeUtf8("Content-Disposition: form-data; name=\"photo\"; filename=\"$filename\"\r\n")
+        output.writeUtf8("Content-Type: $contentType\r\n\r\n")
+        context.contentResolver.openInputStream(uri)?.use { input ->
+            input.copyTo(output)
+        } ?: throw IllegalStateException("Could not open selected photo for upload.")
+        output.writeUtf8("\r\n")
+    }
+
     private fun copyPhotoToPrivateStore(uri: Uri): String {
         val outputDirectory = File(context.filesDir, "library_photos").apply { mkdirs() }
         val extension = guessExtension(uri)
@@ -307,15 +431,18 @@ class AtlasRepository(private val context: Context) {
             return uri.lastPathSegment?.substringAfterLast('.', fallback)?.lowercase(Locale.US) ?: fallback
         }
 
+        return displayName(uri)?.substringAfterLast('.', fallback)?.lowercase(Locale.US) ?: fallback
+    }
+
+    private fun displayName(uri: Uri): String? {
         val cursor = context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
-        val name = cursor?.use {
+        return cursor?.use {
             if (it.moveToFirst()) {
                 it.getString(0)
             } else {
                 null
             }
         }
-        return name?.substringAfterLast('.', fallback)?.lowercase(Locale.US) ?: fallback
     }
 
     private fun normalizeText(value: String): String {
@@ -363,5 +490,21 @@ class AtlasRepository(private val context: Context) {
         } else {
             put(key, value)
         }
+    }
+
+    private fun JSONObject.putNullable(key: String, value: Any?): JSONObject {
+        return put(key, value ?: JSONObject.NULL)
+    }
+
+    private fun OutputStream.writeUtf8(value: String) {
+        write(value.toByteArray(Charsets.UTF_8))
+    }
+
+    private fun String.safeMultipartFilename(): String {
+        return replace("\"", "_").replace("\r", "_").replace("\n", "_")
+    }
+
+    private companion object {
+        const val PREF_CENTRAL_SERVER_URL = "central_server_url"
     }
 }

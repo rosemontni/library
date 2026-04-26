@@ -2,7 +2,9 @@
 
 # Little Library Atlas
 
-Little Library Atlas is a lightweight prototype for cataloging sidewalk mini-libraries from a photo and making nearby-book lookup possible from one shared database.
+Little Library Atlas is a lightweight prototype for cataloging sidewalk mini-libraries from a photo and making nearby-book lookup possible from one shared central database.
+
+The website is the source of truth. People can contribute by uploading a shelf photo on the website, or by using the Android app to capture/review a shelf and sync it to the same website database.
 
 ## What it does
 
@@ -13,6 +15,7 @@ Little Library Atlas is a lightweight prototype for cataloging sidewalk mini-lib
 - Lets a human review and edit the draft before saving.
 - Stores libraries and books in a central SQLite database file.
 - Searches the database by title, author, or ISBN and ranks matches by distance.
+- Accepts Android app contributions through `POST /api/mobile/libraries`.
 
 ## Project layout
 
@@ -23,7 +26,7 @@ Little Library Atlas is a lightweight prototype for cataloging sidewalk mini-lib
 - [android-app](android-app)
 - [assets/github-banner.html](assets/github-banner.html)
 
-## Run it
+## Run the central website
 
 1. Set an OpenAI key if you want automated book extraction.
 
@@ -39,6 +42,14 @@ python app.py
 
 3. Open `http://127.0.0.1:8000`.
 
+For a public deployment, run the same app on a host with persistent storage for `data/`, set `HOST=0.0.0.0`, and use the platform-provided `PORT` if needed. Use HTTPS for the public URL that Android users enter in the app.
+
+```powershell
+$env:HOST="0.0.0.0"
+$env:PORT="8000"
+python app.py
+```
+
 ## Ingest a local photo
 
 The CLI ingest path is useful when you already have a photo on disk and a reviewed metadata JSON file.
@@ -51,7 +62,7 @@ The default metadata file is [samples/blue_little_library_books.json](samples/bl
 
 ## Android app
 
-The repo now includes a standalone Android app in [android-app](android-app). It is local-first and does not ship the original sample photo.
+The repo includes an Android app in [android-app](android-app). It keeps an on-device copy for offline review, and when a contributor enters the central website URL, `Save + sync to website` uploads the reviewed shelf and optional photo to the central database.
 
 ```powershell
 $env:ANDROID_HOME="$env:LOCALAPPDATA\Android\Sdk"
@@ -67,6 +78,8 @@ On Windows, the debug APK is written outside the OneDrive repo tree to avoid Gra
 ```
 
 GitHub Actions also builds the debug APK automatically through [.github/workflows/android-apk.yml](.github/workflows/android-apk.yml).
+
+For local testing against a laptop server, start the website with `HOST=0.0.0.0` and enter a reachable URL such as `http://192.168.1.23:8000` in the Android app. Production deployments should use HTTPS.
 
 ## Banner image
 
