@@ -5,3 +5,18 @@ data/*.db-*
 data/*.sqlite
 data/uploads/*
 !data/uploads/.gitkeep
+android-app/.gradle/
+android-app/build/
+android-app/app/build/
+android-app/local.properties
+*.jks
+*.keystore
+PXL_*.jpg
+PXL_*.jpeg
+IMG_*.jpg
+IMG_*.jpeg
+WhatsApp Image*.jpg
+WhatsApp Image*.jpeg
+*.heic
+*.heif
+*.dng

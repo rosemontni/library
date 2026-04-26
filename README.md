@@ -1,3 +1,5 @@
+![Little Library Atlas banner](assets/github-banner.png)
+
 # Little Library Atlas
 
 Little Library Atlas is a lightweight prototype for cataloging sidewalk mini-libraries from a photo and making nearby-book lookup possible from one shared database.
@@ -18,6 +20,8 @@ Little Library Atlas is a lightweight prototype for cataloging sidewalk mini-lib
 - [static/index.html](static/index.html)
 - [static/styles.css](static/styles.css)
 - [static/app.js](static/app.js)
+- [android-app](android-app)
+- [assets/github-banner.html](assets/github-banner.html)
 
 ## Run it
 
@@ -45,9 +49,33 @@ python scripts\ingest_photo.py "C:\Users\xliup\Downloads\PXL_20260328_161848034 
 
 The default metadata file is [samples/blue_little_library_books.json](samples/blue_little_library_books.json). The script copies the photo into `data/uploads`, extracts EXIF GPS, inserts the library and books into SQLite, then runs a verification search.
 
+## Android app
+
+The repo now includes a standalone Android app in [android-app](android-app). It is local-first and does not ship the original sample photo.
+
+```powershell
+$env:ANDROID_HOME="$env:LOCALAPPDATA\Android\Sdk"
+$env:ANDROID_SDK_ROOT="$env:LOCALAPPDATA\Android\Sdk"
+cd android-app
+.\gradlew.bat assembleDebug
+```
+
+On Windows, the debug APK is written outside the OneDrive repo tree to avoid Gradle file-lock issues:
+
+```text
+%LOCALAPPDATA%\LittleLibraryAtlasAndroidBuild\app\outputs\apk\debug\app-debug.apk
+```
+
+GitHub Actions also builds the debug APK automatically through [.github/workflows/android-apk.yml](.github/workflows/android-apk.yml).
+
+## Banner image
+
+The GitHub banner image is [assets/github-banner.png](assets/github-banner.png). Its source is the tracked HTML/CSS pair [assets/github-banner.html](assets/github-banner.html) and [assets/github-banner.css](assets/github-banner.css), which lets us regenerate the banner without ever committing the original library photo.
+
 ## Notes
 
 - If `OPENAI_API_KEY` is not set, the app still works in manual review mode.
 - The default model is `gpt-4.1-mini`. Set `OPENAI_VISION_MODEL` if you want a different OpenAI vision-capable model.
 - The shared database lives at `data/little_library_atlas.db`.
 - This prototype uses SQLite for simplicity. For multi-server production deployment, move the same schema to Postgres.
+- Raw phone photos are intentionally ignored by Git so the original capture files do not get pushed to GitHub.

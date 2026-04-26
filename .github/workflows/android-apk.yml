@@ -1,0 +1,38 @@
+name: Android APK
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+
+jobs:
+  build-debug-apk:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Make Gradle wrapper executable
+        working-directory: android-app
+        run: chmod +x ./gradlew
+
+      - name: Assemble debug APK
+        working-directory: android-app
+        run: ./gradlew assembleDebug
+
+      - name: Upload debug APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: little-library-atlas-debug-apk
+          path: android-app/app/build/outputs/apk/debug/app-debug.apk

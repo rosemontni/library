@@ -1,0 +1,61 @@
+{
+  "library_name": "Blue Little Library",
+  "library_description": "A bright blue sidewalk little library with a mixed shelf of travel guides, history, fiction, health books, and DVDs.",
+  "place_clues": [
+    "bright blue painted library box",
+    "demo seed for the Android app",
+    "no original photo bundled"
+  ],
+  "demo_latitude": 39.539363888888886,
+  "demo_longitude": -76.08665277777777,
+  "books": [
+    {
+      "title": "Fiber Fueled",
+      "author": "Will Bulsiewicz, MD, MSCI",
+      "isbn": "",
+      "publisher": "",
+      "published_year": "",
+      "genre": "Health / Nutrition",
+      "format": "Hardcover",
+      "condition": "Used-good",
+      "confidence": 0.99,
+      "notes": "Demo seed entry."
+    },
+    {
+      "title": "Lincoln on the Verge",
+      "author": "Ted Widmer",
+      "isbn": "",
+      "publisher": "",
+      "published_year": "",
+      "genre": "History / Biography",
+      "format": "Paperback",
+      "condition": "Used-good",
+      "confidence": 0.99,
+      "notes": "Demo seed entry."
+    },
+    {
+      "title": "Gods & Kings",
+      "author": "Lynn Austin",
+      "isbn": "",
+      "publisher": "",
+      "published_year": "",
+      "genre": "Historical Fiction / Biblical Fiction",
+      "format": "Paperback",
+      "condition": "Used-good",
+      "confidence": 0.97,
+      "notes": "Demo seed entry."
+    },
+    {
+      "title": "Italy",
+      "author": "",
+      "isbn": "",
+      "publisher": "DK",
+      "published_year": "",
+      "genre": "Travel",
+      "format": "Guidebook",
+      "condition": "Used-good",
+      "confidence": 0.98,
+      "notes": "Demo seed entry."
+    }
+  ]
+}
