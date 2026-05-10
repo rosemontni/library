@@ -324,6 +324,15 @@ function runSearch() {
   renderResults(searchBooks(query), query);
 }
 
+function readOptionalCoordinate(inputElement) {
+  const rawValue = inputElement.value.trim();
+  if (!rawValue) {
+    return null;
+  }
+  const parsed = Number(rawValue);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 function setLocation(latitude, longitude, label = "Using your location for distance ranking.") {
   state.searchLocation = { latitude: Number(latitude), longitude: Number(longitude) };
   elements.latitude.value = state.searchLocation.latitude.toFixed(6);
@@ -369,10 +378,15 @@ async function loadData() {
 
 elements.searchForm.addEventListener("submit", (event) => {
   event.preventDefault();
-  const lat = Number(elements.latitude.value);
-  const lon = Number(elements.longitude.value);
-  if (Number.isFinite(lat) && Number.isFinite(lon)) {
+  const lat = readOptionalCoordinate(elements.latitude);
+  const lon = readOptionalCoordinate(elements.longitude);
+  if (lat !== null && lon !== null) {
     setLocation(lat, lon, "Using entered coordinates for distance ranking.");
+  } else if (lat === null && lon === null) {
+    state.searchLocation = null;
+    elements.locationStatus.textContent = "Searching all libraries. Add coordinates to sort by distance.";
+  } else {
+    elements.locationStatus.textContent = "Enter both latitude and longitude, or leave both blank.";
   }
   runSearch();
 });

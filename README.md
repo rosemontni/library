@@ -121,3 +121,7 @@ The GitHub banner image is [assets/github-banner.png](assets/github-banner.png).
 - The shared database lives at `data/little_library_atlas.db`.
 - This prototype uses SQLite for simplicity. For multi-server production deployment, move the same schema to Postgres.
 - Raw phone photos are intentionally ignored by Git so the original capture files do not get pushed to GitHub.
+
+## License
+
+Little Library Atlas is licensed under the [Apache License 2.0](LICENSE).
