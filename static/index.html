@@ -51,12 +51,8 @@
 
             <div class="search-geo-row">
               <label>
-                <span>Your latitude</span>
-                <input id="searchLatitude" type="number" step="any" />
-              </label>
-              <label>
-                <span>Your longitude</span>
-                <input id="searchLongitude" type="number" step="any" />
+                <span>Your ZIP code</span>
+                <input id="searchZipCode" type="text" inputmode="numeric" pattern="[0-9]{5}(-[0-9]{4})?" placeholder="20877" />
               </label>
               <label>
                 <span>Radius</span>
@@ -69,7 +65,7 @@
               <button type="button" class="secondary-button" id="useSearchLocation">Use my location</button>
               <a class="secondary-link" href="#contribute">Add a shelf</a>
             </div>
-            <span class="microcopy" id="searchLocationStatus">Distance ranking works best with your location.</span>
+            <span class="microcopy" id="searchLocationStatus">Distance ranking works best with your ZIP code or browser location.</span>
           </form>
         </div>
 
@@ -263,6 +259,6 @@
       integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
       crossorigin=""
     ></script>
-    <script src="/app.js" defer></script>
+    <script src="/app.js?v=zip-search" defer></script>
   </body>
 </html>

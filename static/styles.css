@@ -230,7 +230,7 @@ textarea {
 
 .search-geo-row {
   display: grid;
-  grid-template-columns: 1fr 1fr 0.75fr;
+  grid-template-columns: minmax(0, 1fr) 0.75fr;
   gap: 10px;
 }
 

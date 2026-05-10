@@ -41,12 +41,8 @@
 
             <div class="field-grid">
               <label>
-                Latitude
-                <input id="latitude" type="number" step="any" placeholder="optional" />
-              </label>
-              <label>
-                Longitude
-                <input id="longitude" type="number" step="any" placeholder="optional" />
+                ZIP code
+                <input id="zipCode" type="text" inputmode="numeric" pattern="[0-9]{5}(-[0-9]{4})?" placeholder="20877" />
               </label>
               <label>
                 Radius
@@ -64,7 +60,7 @@
               <button type="submit">Search atlas</button>
               <button type="button" id="useLocation" class="secondary">Use my location</button>
             </div>
-            <p id="locationStatus" class="note">Distance sorting works best with your location.</p>
+            <p id="locationStatus" class="note">Distance sorting works best with your ZIP code or browser location.</p>
           </form>
 
           <div class="quick-searches" aria-label="Quick searches">
@@ -100,6 +96,6 @@
       integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
       crossorigin=""
     ></script>
-    <script src="./app.js" defer></script>
+    <script src="./app.js?v=zip-search" defer></script>
   </body>
 </html>

@@ -38,7 +38,7 @@ The exporter writes library coordinates and book metadata only. It intentionally
 - Uses the OpenAI Responses API to extract visible books and metadata into JSON.
 - Lets a human review and edit the draft before saving.
 - Stores libraries and books in a central SQLite database file.
-- Searches the database by title, author, or ISBN and ranks matches by distance.
+- Searches the database by title, author, topic, publisher, or ISBN and ranks matches by ZIP code or browser-location distance.
 - Accepts Android app contributions through `POST /api/mobile/libraries`.
 - Shows the locator photo in search results so readers can recognize the mini bookcase nearby.
 

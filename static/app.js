@@ -41,8 +41,7 @@ const elements = {
   addBookRow: document.getElementById("addBookRow"),
   searchForm: document.getElementById("searchForm"),
   searchQuery: document.getElementById("searchQuery"),
-  searchLatitude: document.getElementById("searchLatitude"),
-  searchLongitude: document.getElementById("searchLongitude"),
+  searchZipCode: document.getElementById("searchZipCode"),
   searchRadius: document.getElementById("searchRadius"),
   useSearchLocation: document.getElementById("useSearchLocation"),
   searchLocationStatus: document.getElementById("searchLocationStatus"),
@@ -50,6 +49,36 @@ const elements = {
   bookRowTemplate: document.getElementById("bookRowTemplate"),
   topicChips: Array.from(document.querySelectorAll(".topic-chip")),
 };
+
+const LOCAL_ZIP_CENTROIDS = Object.freeze({
+  "20001": { latitude: 38.9101, longitude: -77.0171, label: "Washington, DC 20001" },
+  "20002": { latitude: 38.9057, longitude: -76.9845, label: "Washington, DC 20002" },
+  "20003": { latitude: 38.884, longitude: -76.994, label: "Washington, DC 20003" },
+  "20007": { latitude: 38.9146, longitude: -77.0742, label: "Washington, DC 20007" },
+  "20740": { latitude: 38.996, longitude: -76.929, label: "College Park, MD 20740" },
+  "20814": { latitude: 38.9907, longitude: -77.1003, label: "Bethesda, MD 20814" },
+  "20815": { latitude: 38.9834, longitude: -77.0789, label: "Chevy Chase, MD 20815" },
+  "20817": { latitude: 39.0007, longitude: -77.1547, label: "Bethesda, MD 20817" },
+  "20850": { latitude: 39.0891, longitude: -77.1837, label: "Rockville, MD 20850" },
+  "20852": { latitude: 39.0497, longitude: -77.1209, label: "North Bethesda, MD 20852" },
+  "20854": { latitude: 39.0384, longitude: -77.2003, label: "Potomac, MD 20854" },
+  "20877": { latitude: 39.1434, longitude: -77.2014, label: "Gaithersburg, MD 20877" },
+  "20878": { latitude: 39.1148, longitude: -77.2469, label: "Gaithersburg, MD 20878" },
+  "20879": { latitude: 39.1699, longitude: -77.1696, label: "Gaithersburg, MD 20879" },
+  "20895": { latitude: 39.0297, longitude: -77.0764, label: "Kensington, MD 20895" },
+  "20901": { latitude: 39.0219, longitude: -77.0077, label: "Silver Spring, MD 20901" },
+  "20902": { latitude: 39.0438, longitude: -77.0458, label: "Silver Spring, MD 20902" },
+  "20910": { latitude: 38.9987, longitude: -77.033, label: "Silver Spring, MD 20910" },
+  "20912": { latitude: 38.9807, longitude: -76.9897, label: "Takoma Park, MD 20912" },
+  "21044": { latitude: 39.207, longitude: -76.883, label: "Columbia, MD 21044" },
+  "21201": { latitude: 39.2953, longitude: -76.6181, label: "Baltimore, MD 21201" },
+  "22201": { latitude: 38.8865, longitude: -77.095, label: "Arlington, VA 22201" },
+  "22202": { latitude: 38.8564, longitude: -77.0539, label: "Arlington, VA 22202" },
+  "22203": { latitude: 38.8735, longitude: -77.1175, label: "Arlington, VA 22203" },
+  "22204": { latitude: 38.8613, longitude: -77.0985, label: "Arlington, VA 22204" },
+  "22205": { latitude: 38.8836, longitude: -77.139, label: "Arlington, VA 22205" },
+  "22301": { latitude: 38.8197, longitude: -77.0584, label: "Alexandria, VA 22301" },
+});
 
 async function fetchJSON(url, options = {}) {
   const response = await fetch(url, options);
@@ -75,6 +104,40 @@ function setCallout(message, mode = "muted") {
 function updateCounts(counts) {
   elements.libraryCount.textContent = counts?.libraries ?? 0;
   elements.bookCount.textContent = counts?.books ?? 0;
+}
+
+function normalizeZipCode(value) {
+  const match = String(value ?? "")
+    .trim()
+    .match(/^(\d{5})(?:-\d{4})?$/);
+  return match ? match[1] : "";
+}
+
+async function lookupZipCode(value) {
+  const zipCode = normalizeZipCode(value);
+  if (!zipCode) {
+    throw new Error("Enter a valid 5-digit ZIP code, or leave ZIP blank to search all libraries.");
+  }
+
+  if (LOCAL_ZIP_CENTROIDS[zipCode]) {
+    return { ...LOCAL_ZIP_CENTROIDS[zipCode], zipCode };
+  }
+
+  const response = await fetch(`https://api.zippopotam.us/us/${zipCode}`);
+  if (!response.ok) {
+    throw new Error(`Could not look up ZIP code ${zipCode}. Try browser location or leave ZIP blank.`);
+  }
+
+  const payload = await response.json();
+  const place = payload.places?.[0];
+  const latitude = Number(place?.latitude);
+  const longitude = Number(place?.longitude);
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+    throw new Error(`Could not read coordinates for ZIP code ${zipCode}.`);
+  }
+
+  const label = [place["place name"], place["state abbreviation"], zipCode].filter(Boolean).join(", ");
+  return { latitude, longitude, label, zipCode };
 }
 
 function libraryHasCoordinates(library) {
@@ -513,8 +576,8 @@ elements.useCaptureLocation.addEventListener("click", async () => {
 elements.useSearchLocation.addEventListener("click", async () => {
   try {
     state.searchLocation = await requestLocation(elements.searchLocationStatus);
-    elements.searchLatitude.value = state.searchLocation.latitude;
-    elements.searchLongitude.value = state.searchLocation.longitude;
+    state.searchLocation.source = "browser";
+    elements.searchZipCode.value = "";
     elements.searchLocationStatus.textContent = `Using ${formatNumber(state.searchLocation.latitude)}°, ${formatNumber(
       state.searchLocation.longitude
     )}° for distance ranking.`;
@@ -592,11 +655,26 @@ elements.searchForm.addEventListener("submit", async (event) => {
     return;
   }
 
+  const zipCode = elements.searchZipCode.value.trim();
+  if (zipCode) {
+    try {
+      const location = await lookupZipCode(zipCode);
+      state.searchLocation = { latitude: location.latitude, longitude: location.longitude, source: "zip" };
+      elements.searchLocationStatus.textContent = `Using ZIP ${location.zipCode} (${location.label}) for distance ranking.`;
+    } catch (error) {
+      elements.searchLocationStatus.textContent = error.message;
+      return;
+    }
+  } else if (state.searchLocation?.source !== "browser") {
+    state.searchLocation = null;
+    elements.searchLocationStatus.textContent = "Searching all libraries. Add a ZIP code to sort by distance.";
+  }
+
   const payload = {
     query,
     category: state.activeCategory,
-    latitude: elements.searchLatitude.value ? Number(elements.searchLatitude.value) : null,
-    longitude: elements.searchLongitude.value ? Number(elements.searchLongitude.value) : null,
+    latitude: state.searchLocation?.latitude ?? null,
+    longitude: state.searchLocation?.longitude ?? null,
     radius_miles: elements.searchRadius.value ? Number(elements.searchRadius.value) : 25,
   };
 
