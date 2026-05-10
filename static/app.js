@@ -2,16 +2,28 @@ const state = {
   captureLocation: null,
   searchLocation: null,
   currentDraft: null,
+  activeCategory: "",
+  libraries: [],
+  map: null,
+  markers: new Map(),
+  markerBounds: null,
 };
 
 const elements = {
   libraryCount: document.getElementById("libraryCount"),
   bookCount: document.getElementById("bookCount"),
   modelName: document.getElementById("modelName"),
+  atlasMap: document.getElementById("atlasMap"),
+  mapStatus: document.getElementById("mapStatus"),
+  fitMapButton: document.getElementById("fitMapButton"),
+  mapLibraryList: document.getElementById("mapLibraryList"),
   captureForm: document.getElementById("captureForm"),
-  photoInput: document.getElementById("photoInput"),
-  photoPreview: document.getElementById("photoPreview"),
-  previewPlaceholder: document.getElementById("previewPlaceholder"),
+  booksPhotoInput: document.getElementById("booksPhotoInput"),
+  locationPhotoInput: document.getElementById("locationPhotoInput"),
+  booksPhotoPreview: document.getElementById("booksPhotoPreview"),
+  booksPreviewPlaceholder: document.getElementById("booksPreviewPlaceholder"),
+  locationPhotoPreview: document.getElementById("locationPhotoPreview"),
+  locationPreviewPlaceholder: document.getElementById("locationPreviewPlaceholder"),
   useCaptureLocation: document.getElementById("useCaptureLocation"),
   captureLocationStatus: document.getElementById("captureLocationStatus"),
   analysisStatus: document.getElementById("analysisStatus"),
@@ -36,6 +48,7 @@ const elements = {
   searchLocationStatus: document.getElementById("searchLocationStatus"),
   searchResults: document.getElementById("searchResults"),
   bookRowTemplate: document.getElementById("bookRowTemplate"),
+  topicChips: Array.from(document.querySelectorAll(".topic-chip")),
 };
 
 async function fetchJSON(url, options = {}) {
@@ -64,17 +77,162 @@ function updateCounts(counts) {
   elements.bookCount.textContent = counts?.books ?? 0;
 }
 
-function previewSelectedPhoto(file) {
+function libraryHasCoordinates(library) {
+  return library.latitude !== null && library.latitude !== undefined && library.longitude !== null && library.longitude !== undefined;
+}
+
+function libraryPhoto(library) {
+  return library.location_photo_url || library.photo_url || library.books_photo_url || "";
+}
+
+function initMap() {
+  if (state.map || !elements.atlasMap) {
+    return;
+  }
+
+  if (!window.L) {
+    elements.atlasMap.innerHTML = `<div class="map-loading">Map library unavailable. Check your network connection for OpenStreetMap tiles.</div>`;
+    elements.mapStatus.textContent = "The library list still works, but the zoomable map could not load.";
+    return;
+  }
+
+  elements.atlasMap.innerHTML = "";
+  state.map = L.map(elements.atlasMap, {
+    zoomControl: true,
+    scrollWheelZoom: true,
+  }).setView([39.12, -77.15], 10);
+
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 19,
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+  }).addTo(state.map);
+}
+
+function markerIcon(bookCount = 0) {
+  return L.divIcon({
+    className: "atlas-marker",
+    html: `<span><b>${bookCount}</b></span>`,
+    iconSize: [38, 44],
+    iconAnchor: [19, 42],
+    popupAnchor: [0, -38],
+  });
+}
+
+function popupHtml(library) {
+  const photo = libraryPhoto(library);
+  const sampleBooks = (library.sample_books || [])
+    .map((title) => `<li>${escapeHtml(title)}</li>`)
+    .join("");
+  return `
+    <article class="map-popup">
+      ${photo ? `<img src="${escapeHtml(photo)}" alt="${escapeHtml(library.name)} locator photo" />` : ""}
+      <strong>${escapeHtml(library.name)}</strong>
+      <p>${escapeHtml(library.description || "No description saved yet.")}</p>
+      <small>${library.book_count || 0} books · ${escapeHtml(library.location_source || "manual")}</small>
+      ${sampleBooks ? `<ul>${sampleBooks}</ul>` : ""}
+    </article>
+  `;
+}
+
+function renderMap(libraries) {
+  initMap();
+  if (!state.map || !window.L) {
+    return;
+  }
+
+  state.markers.forEach((marker) => marker.remove());
+  state.markers.clear();
+
+  const mappedLibraries = libraries.filter(libraryHasCoordinates);
+  const markerCoordinates = [];
+  mappedLibraries.forEach((library) => {
+    const coordinates = [library.latitude, library.longitude];
+    const marker = L.marker(coordinates, { icon: markerIcon(library.book_count) })
+      .addTo(state.map)
+      .bindPopup(popupHtml(library), { maxWidth: 290 });
+    state.markers.set(library.id, marker);
+    markerCoordinates.push(coordinates);
+  });
+
+  if (markerCoordinates.length) {
+    state.markerBounds = L.latLngBounds(markerCoordinates);
+    state.map.fitBounds(state.markerBounds, { padding: [42, 42], maxZoom: 14 });
+    elements.mapStatus.textContent = `${markerCoordinates.length} mapped shelves. Scroll or pinch to zoom.`;
+  } else {
+    state.markerBounds = null;
+    elements.mapStatus.textContent = "No saved libraries have coordinates yet.";
+  }
+}
+
+function renderLibraryList(libraries) {
+  elements.mapLibraryList.innerHTML = "";
+
+  if (!libraries.length) {
+    elements.mapLibraryList.innerHTML = `<div class="result-empty">No libraries saved yet. Add one from the contribute panel.</div>`;
+    return;
+  }
+
+  libraries.forEach((library) => {
+    const card = document.createElement("article");
+    card.className = "library-mini-card";
+    const photo = libraryPhoto(library);
+    const coords = libraryHasCoordinates(library)
+      ? `${formatNumber(library.latitude)}°, ${formatNumber(library.longitude)}°`
+      : "Coordinates missing";
+    const samples = (library.sample_books || []).slice(0, 3).map(escapeHtml).join(" · ");
+    card.innerHTML = `
+      ${photo ? `<img src="${escapeHtml(photo)}" alt="${escapeHtml(library.name)} locator photo" />` : `<div class="library-mini-empty">No photo</div>`}
+      <div>
+        <h3>${escapeHtml(library.name)}</h3>
+        <p>${escapeHtml(library.description || "No description saved yet.")}</p>
+        <div class="mini-meta">
+          <span>${library.book_count || 0} books</span>
+          <span>${escapeHtml(coords)}</span>
+        </div>
+        ${samples ? `<small>${samples}</small>` : ""}
+      </div>
+    `;
+    if (libraryHasCoordinates(library)) {
+      card.tabIndex = 0;
+      card.role = "button";
+      card.setAttribute("aria-label", `Show ${library.name} on the map`);
+      const focusMarker = () => {
+        const marker = state.markers.get(library.id);
+        if (state.map && marker) {
+          state.map.flyTo([library.latitude, library.longitude], Math.max(state.map.getZoom(), 15), { duration: 0.8 });
+          marker.openPopup();
+        }
+      };
+      card.addEventListener("click", focusMarker);
+      card.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          focusMarker();
+        }
+      });
+    }
+    elements.mapLibraryList.appendChild(card);
+  });
+}
+
+async function loadLibraries() {
+  const payload = await fetchJSON("/api/libraries");
+  state.libraries = payload.libraries || [];
+  renderLibraryList(state.libraries);
+  renderMap(state.libraries);
+}
+
+function previewSelectedPhoto(file, imageElement, placeholderElement) {
   if (!file) {
-    elements.photoPreview.hidden = true;
-    elements.previewPlaceholder.hidden = false;
+    imageElement.hidden = true;
+    placeholderElement.hidden = false;
     return;
   }
 
   const url = URL.createObjectURL(file);
-  elements.photoPreview.src = url;
-  elements.photoPreview.hidden = false;
-  elements.previewPlaceholder.hidden = true;
+  imageElement.src = url;
+  imageElement.hidden = false;
+  placeholderElement.hidden = true;
 }
 
 async function requestLocation(statusElement) {
@@ -181,6 +339,8 @@ function collectDraftPayload() {
     library_name: elements.libraryName.value.trim(),
     library_description: elements.libraryDescription.value.trim(),
     photo_path: state.currentDraft?.photo_url?.replace(/^\//, "") || "",
+    books_photo_path: state.currentDraft?.books_photo_url?.replace(/^\//, "") || "",
+    location_photo_path: state.currentDraft?.location_photo_url?.replace(/^\//, "") || "",
     place_clues: elements.placeClues.value
       .split(",")
       .map((item) => item.trim())
@@ -203,44 +363,98 @@ function formatDistance(value) {
   return `${value.toFixed(1)} mi away`;
 }
 
+function setActiveCategory(category) {
+  state.activeCategory = state.activeCategory === category ? "" : category;
+  elements.topicChips.forEach((chip) => {
+    chip.classList.toggle("active", chip.dataset.category === state.activeCategory);
+    chip.setAttribute("aria-pressed", String(chip.dataset.category === state.activeCategory));
+  });
+}
+
 function renderSearchResults(results) {
   elements.searchResults.innerHTML = "";
 
   if (!results.length) {
-    elements.searchResults.innerHTML = `<div class="result-empty">No matching books were found within the selected radius yet.</div>`;
+    elements.searchResults.innerHTML = `<div class="result-empty">No matching books were found within the selected radius yet. Try a broader category or a wider radius.</div>`;
     return;
   }
 
+  const groups = new Map();
   results.forEach((result) => {
+    const key = result.library.id;
+    if (!groups.has(key)) {
+      groups.set(key, {
+        library: result.library,
+        distance_miles: result.distance_miles,
+        books: [],
+      });
+    }
+    groups.get(key).books.push(result);
+  });
+
+  Array.from(groups.values()).forEach((group) => {
     const article = document.createElement("article");
     article.className = "result-card";
 
-    const distanceLabel = formatDistance(result.distance_miles);
+    const distanceLabel = formatDistance(group.distance_miles);
     const libraryCoords =
-      result.library.latitude !== null && result.library.longitude !== null
-        ? `${formatNumber(result.library.latitude)}°, ${formatNumber(result.library.longitude)}°`
+      group.library.latitude !== null && group.library.longitude !== null
+        ? `${formatNumber(group.library.latitude)}°, ${formatNumber(group.library.longitude)}°`
         : "Coordinates not saved";
 
+    const locatorPhoto = group.library.location_photo_url || group.library.photo_url;
+    const matchedBooks = group.books
+      .map((book) => {
+        const details = [book.author, book.genre, book.format].filter(Boolean).map(escapeHtml).join(" · ");
+        return `
+          <li>
+            <strong>${escapeHtml(book.title)}</strong>
+            ${details ? `<span>${details}</span>` : ""}
+          </li>
+        `;
+      })
+      .join("");
+
     article.innerHTML = `
+      ${
+        locatorPhoto
+          ? `<img class="result-photo" src="${escapeHtml(locatorPhoto)}" alt="${escapeHtml(group.library.name)} locator photo" />`
+          : `<div class="result-photo result-photo-empty">No locator photo</div>`
+      }
       <div class="result-head">
         <div>
-          <h3 class="result-title">${escapeHtml(result.title)}</h3>
-          <p>${escapeHtml(result.author || "Unknown author")}</p>
+          <h3 class="result-title">${escapeHtml(group.library.name)}</h3>
+          <p>${escapeHtml(group.library.description || "No library description saved yet.")}</p>
         </div>
         <span class="distance-pill">${escapeHtml(distanceLabel)}</span>
       </div>
-      <div class="result-meta">
-        ${result.isbn ? `<span>ISBN ${escapeHtml(result.isbn)}</span>` : ""}
-        ${result.genre ? `<span>${escapeHtml(result.genre)}</span>` : ""}
-        ${result.format ? `<span>${escapeHtml(result.format)}</span>` : ""}
-        ${result.condition ? `<span>${escapeHtml(result.condition)}</span>` : ""}
+      <div class="result-meta compact-meta">
+        <span>${group.books.length} matching book${group.books.length === 1 ? "" : "s"}</span>
+        <span>${escapeHtml(libraryCoords)}</span>
+        <span>${escapeHtml(group.library.location_source || "manual")}</span>
       </div>
-      <div class="result-library">
-        <strong>${escapeHtml(result.library.name)}</strong><br />
-        ${escapeHtml(result.library.description || "No library description saved yet.")}<br />
-        <small>${escapeHtml(libraryCoords)} · source: ${escapeHtml(result.library.location_source || "manual")}</small>
-      </div>
+      <ul class="matched-books">${matchedBooks}</ul>
     `;
+
+    if (group.library?.id && libraryHasCoordinates(group.library)) {
+      article.tabIndex = 0;
+      article.role = "button";
+      article.setAttribute("aria-label", `Show ${group.library.name} on the map`);
+      const focusMarker = () => {
+        const marker = state.markers.get(group.library.id);
+        if (state.map && marker) {
+          state.map.flyTo([group.library.latitude, group.library.longitude], Math.max(state.map.getZoom(), 15), { duration: 0.8 });
+          marker.openPopup();
+        }
+      };
+      article.addEventListener("click", focusMarker);
+      article.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          focusMarker();
+        }
+      });
+    }
 
     elements.searchResults.appendChild(article);
   });
@@ -261,9 +475,28 @@ async function loadConfig() {
   elements.modelName.textContent = payload.openai_enabled ? payload.model : "manual mode";
 }
 
-elements.photoInput.addEventListener("change", (event) => {
+elements.fitMapButton.addEventListener("click", () => {
+  if (state.map && state.markerBounds) {
+    state.map.fitBounds(state.markerBounds, { padding: [42, 42], maxZoom: 14 });
+  }
+});
+
+elements.topicChips.forEach((chip) => {
+  chip.setAttribute("aria-pressed", "false");
+  chip.addEventListener("click", () => {
+    setActiveCategory(chip.dataset.category || "");
+    elements.searchForm.requestSubmit();
+  });
+});
+
+elements.booksPhotoInput.addEventListener("change", (event) => {
   const file = event.target.files?.[0];
-  previewSelectedPhoto(file);
+  previewSelectedPhoto(file, elements.booksPhotoPreview, elements.booksPreviewPlaceholder);
+});
+
+elements.locationPhotoInput.addEventListener("change", (event) => {
+  const file = event.target.files?.[0];
+  previewSelectedPhoto(file, elements.locationPhotoPreview, elements.locationPreviewPlaceholder);
 });
 
 elements.useCaptureLocation.addEventListener("click", async () => {
@@ -293,16 +526,20 @@ elements.useSearchLocation.addEventListener("click", async () => {
 elements.captureForm.addEventListener("submit", async (event) => {
   event.preventDefault();
 
-  const file = elements.photoInput.files?.[0];
-  if (!file) {
-    setCallout("Pick a sidewalk library photo first.", "error");
+  const booksFile = elements.booksPhotoInput.files?.[0];
+  const locationFile = elements.locationPhotoInput.files?.[0];
+  if (!booksFile) {
+    setCallout("Pick a close-up books photo first. The locator photo is optional.", "error");
     return;
   }
 
-  setCallout("Analyzing photo and extracting shelf metadata...", "muted");
+  setCallout("Analyzing the books photo and preparing the locator image...", "muted");
 
   const formData = new FormData();
-  formData.append("photo", file);
+  formData.append("books_photo", booksFile);
+  if (locationFile) {
+    formData.append("location_photo", locationFile);
+  }
   if (state.captureLocation) {
     formData.append("browser_latitude", state.captureLocation.latitude);
     formData.append("browser_longitude", state.captureLocation.longitude);
@@ -339,6 +576,7 @@ elements.libraryDraftForm.addEventListener("submit", async (event) => {
     });
 
     updateCounts(response.counts);
+    await loadLibraries();
     setCallout("Library saved into the atlas. You can search it from the panel on the right.", "muted");
   } catch (error) {
     setCallout(error.message, "error");
@@ -349,13 +587,14 @@ elements.searchForm.addEventListener("submit", async (event) => {
   event.preventDefault();
 
   const query = elements.searchQuery.value.trim();
-  if (!query) {
-    elements.searchResults.innerHTML = `<div class="result-empty">Enter a title, author, or ISBN to search the atlas.</div>`;
+  if (!query && !state.activeCategory) {
+    elements.searchResults.innerHTML = `<div class="result-empty">Enter a title, author, ISBN, topic, or choose a category chip.</div>`;
     return;
   }
 
   const payload = {
     query,
+    category: state.activeCategory,
     latitude: elements.searchLatitude.value ? Number(elements.searchLatitude.value) : null,
     longitude: elements.searchLongitude.value ? Number(elements.searchLongitude.value) : null,
     radius_miles: elements.searchRadius.value ? Number(elements.searchRadius.value) : 25,
@@ -373,6 +612,6 @@ elements.searchForm.addEventListener("submit", async (event) => {
   }
 });
 
-loadConfig().catch((error) => {
+Promise.all([loadConfig(), loadLibraries()]).catch((error) => {
   setCallout(error.message, "error");
 });

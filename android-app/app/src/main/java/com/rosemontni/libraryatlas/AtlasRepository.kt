@@ -161,7 +161,7 @@ class AtlasRepository(private val context: Context) {
             connection.outputStream.use { output ->
                 writeFormField(output, boundary, "payload", draft.toCentralPayload().toString())
                 draft.photoUri.takeIf { it.isNotBlank() }?.let { uriText ->
-                    writePhotoPart(output, boundary, Uri.parse(uriText))
+                    writePhotoPart(output, boundary, Uri.parse(uriText), "location_photo")
                 }
                 output.writeUtf8("--$boundary--\r\n")
             }
@@ -398,14 +398,14 @@ class AtlasRepository(private val context: Context) {
         output.writeUtf8("\r\n")
     }
 
-    private fun writePhotoPart(output: OutputStream, boundary: String, uri: Uri) {
+    private fun writePhotoPart(output: OutputStream, boundary: String, uri: Uri, fieldName: String) {
         val filename = displayName(uri)?.safeMultipartFilename()
             ?: "library-photo-${System.currentTimeMillis()}.${guessExtension(uri)}"
         val contentType = context.contentResolver.getType(uri)
             ?: "image/${guessExtension(uri).ifBlank { "jpeg" }}"
 
         output.writeUtf8("--$boundary\r\n")
-        output.writeUtf8("Content-Disposition: form-data; name=\"photo\"; filename=\"$filename\"\r\n")
+        output.writeUtf8("Content-Disposition: form-data; name=\"$fieldName\"; filename=\"$filename\"\r\n")
         output.writeUtf8("Content-Type: $contentType\r\n\r\n")
         context.contentResolver.openInputStream(uri)?.use { input ->
             input.copyTo(output)

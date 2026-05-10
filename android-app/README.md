@@ -1,8 +1,8 @@
 # Little Library Atlas Android
 
-This Android app lets contributors pick or take a shelf photo, read EXIF geolocation when present, review books manually, keep a phone copy, and sync the contribution to the central Little Library Atlas website.
+This Android app lets contributors pick or take a locator photo of the mini bookcase, read EXIF geolocation when present, review books manually, keep a phone copy, and sync the contribution to the central Little Library Atlas website.
 
-The central website is the source of truth. Enter its public URL in the Capture tab, then use `Save + sync to website` to upload the reviewed library, geolocation, book metadata, and optional photo to `POST /api/mobile/libraries`.
+The central website is the source of truth. Enter its public URL in the Capture tab, then use `Save + sync to website` to upload the reviewed library, geolocation, book metadata, and optional locator photo to `POST /api/mobile/libraries`.
 
 ## Build
 

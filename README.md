@@ -6,9 +6,33 @@ Little Library Atlas is a lightweight prototype for cataloging sidewalk mini-lib
 
 The website is the source of truth. People can contribute by uploading a shelf photo on the website, or by using the Android app to capture/review a shelf and sync it to the same website database.
 
+## Current library map
+
+![Map of indexed Little Library Atlas locations](assets/library-map.svg)
+
+The map is generated from the local SQLite database by [scripts/render_library_map.py](scripts/render_library_map.py). Every successful library save refreshes [assets/library-map.svg](assets/library-map.svg), so the README map stays in sync as new libraries are added.
+
+You can also regenerate it manually:
+
+```powershell
+python scripts\render_library_map.py
+```
+
+## GitHub Pages map and search
+
+The repository also includes a static GitHub Pages site in [docs](docs). It loads [docs/atlas-data.json](docs/atlas-data.json), renders a zoomable OpenStreetMap/Leaflet map, and searches books directly in the browser.
+
+Regenerate the Pages data snapshot before publishing:
+
+```powershell
+python scripts\export_github_pages.py
+```
+
+The exporter writes library coordinates and book metadata only. It intentionally omits original and uploaded photos so private capture files are not published. On `main`, [.github/workflows/github-pages.yml](.github/workflows/github-pages.yml) deploys the `docs/` folder to GitHub Pages.
+
 ## What it does
 
-- Takes a library photo from a browser file picker or phone camera.
+- Takes a close-up books photo for extraction and an optional wider locator photo for wayfinding.
 - Pulls geolocation from photo EXIF GPS when it exists.
 - Falls back to browser geolocation when the user allows it.
 - Uses the OpenAI Responses API to extract visible books and metadata into JSON.
@@ -16,6 +40,7 @@ The website is the source of truth. People can contribute by uploading a shelf p
 - Stores libraries and books in a central SQLite database file.
 - Searches the database by title, author, or ISBN and ranks matches by distance.
 - Accepts Android app contributions through `POST /api/mobile/libraries`.
+- Shows the locator photo in search results so readers can recognize the mini bookcase nearby.
 
 ## Project layout
 
@@ -24,6 +49,10 @@ The website is the source of truth. People can contribute by uploading a shelf p
 - [static/styles.css](static/styles.css)
 - [static/app.js](static/app.js)
 - [android-app](android-app)
+- [scripts/render_library_map.py](scripts/render_library_map.py)
+- [scripts/export_github_pages.py](scripts/export_github_pages.py)
+- [assets/library-map.svg](assets/library-map.svg)
+- [docs/index.html](docs/index.html)
 - [assets/github-banner.html](assets/github-banner.html)
 
 ## Run the central website

@@ -280,7 +280,7 @@ private fun CaptureScreen(
                 ) {
                     Text("Shelf intake", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
                     Text(
-                        "Import a shelf photo, keep the EXIF geotag when it exists, then sync the reviewed catalog to the website database.",
+                        "Import a locator photo of the mini bookcase, keep the EXIF geotag when it exists, then sync the reviewed catalog to the website database.",
                         color = Color(0xFF55646D)
                     )
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {

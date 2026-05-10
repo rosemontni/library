@@ -20,3 +20,6 @@ WhatsApp Image*.jpeg
 *.heic
 *.heif
 *.dng
+.playwright-mcp/
+little-library-*.png
+github-pages-*.png

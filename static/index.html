@@ -4,73 +4,164 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Little Library Atlas</title>
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+      crossorigin=""
+    />
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
-    <div class="page-shell">
-      <header class="hero">
-        <div class="hero-copy">
-          <p class="eyebrow">Neighborhood catalog</p>
-          <h1>Little Library Atlas</h1>
-          <p class="lede">Snap a shelf, map a neighborhood, and help readers find the closest copy.</p>
-          <div class="hero-stats">
-            <article class="stat-card">
-              <span class="stat-label">Libraries indexed</span>
-              <strong id="libraryCount">0</strong>
-            </article>
-            <article class="stat-card">
-              <span class="stat-label">Books indexed</span>
-              <strong id="bookCount">0</strong>
-            </article>
-            <article class="stat-card">
-              <span class="stat-label">Vision model</span>
-              <strong id="modelName">offline</strong>
-            </article>
-          </div>
+    <div class="app-shell">
+      <header class="topbar">
+        <a class="brand" href="#top" aria-label="Little Library Atlas home">
+          <span class="brand-mark">LL</span>
+          <span>Little Library Atlas</span>
+        </a>
+        <div class="topbar-stats" aria-label="Atlas status">
+          <span><strong id="libraryCount">0</strong> libraries</span>
+          <span><strong id="bookCount">0</strong> books</span>
+          <span id="modelName">manual mode</span>
         </div>
-        <aside class="hero-map">
-          <div class="map-surface">
-            <div class="map-pin pin-a"></div>
-            <div class="map-pin pin-b"></div>
-            <div class="map-pin pin-c"></div>
-            <p>Capture a sidewalk library, review the extracted shelf list, then save it into a shared searchable atlas.</p>
-          </div>
-        </aside>
       </header>
 
+      <section id="top" class="hero">
+        <div class="hero-copy">
+          <p class="eyebrow">Community book-finding network</p>
+          <h1>Find the closest shelf copy.</h1>
+          <p class="lede">
+            Contributors upload a book-spine photo for extraction and a wider locator photo so readers can recognize the
+            mini library in the real world.
+          </p>
+          <form id="searchForm" class="hero-search" aria-label="Search nearby books">
+            <label class="search-box">
+              <span>Find a book nearby</span>
+              <input id="searchQuery" type="text" placeholder="Try gardening, careers, Lincoln, yoga..." />
+            </label>
+
+            <div class="topic-chips" aria-label="Quick search categories">
+              <button type="button" class="topic-chip" data-category="non-fiction">Non-fiction</button>
+              <button type="button" class="topic-chip" data-category="kids">Kids</button>
+              <button type="button" class="topic-chip" data-category="gardening">Gardening</button>
+              <button type="button" class="topic-chip" data-category="travel">Travel</button>
+              <button type="button" class="topic-chip" data-category="history">History</button>
+              <button type="button" class="topic-chip" data-category="wellness">Wellness</button>
+            </div>
+
+            <div class="search-geo-row">
+              <label>
+                <span>Your latitude</span>
+                <input id="searchLatitude" type="number" step="any" />
+              </label>
+              <label>
+                <span>Your longitude</span>
+                <input id="searchLongitude" type="number" step="any" />
+              </label>
+              <label>
+                <span>Radius</span>
+                <input id="searchRadius" type="number" min="1" step="1" value="25" />
+              </label>
+            </div>
+
+            <div class="hero-actions">
+              <button type="submit" class="primary-button">Search Atlas</button>
+              <button type="button" class="secondary-button" id="useSearchLocation">Use my location</button>
+              <a class="secondary-link" href="#contribute">Add a shelf</a>
+            </div>
+            <span class="microcopy" id="searchLocationStatus">Distance ranking works best with your location.</span>
+          </form>
+        </div>
+
+        <section class="map-card" aria-labelledby="mapTitle">
+          <div class="map-card-header">
+            <div>
+              <p class="panel-kicker">Live atlas</p>
+              <h2 id="mapTitle">Zoomable library map</h2>
+            </div>
+            <button type="button" class="secondary-button compact" id="fitMapButton">Fit markers</button>
+          </div>
+          <div id="atlasMap" class="atlas-map" role="application" aria-label="Zoomable map of indexed little libraries">
+            <div class="map-loading">Loading map...</div>
+          </div>
+          <p class="map-note" id="mapStatus">Map markers come from saved library coordinates.</p>
+        </section>
+      </section>
+
       <main class="workspace">
-        <section class="panel capture-panel">
+        <section class="panel library-list-panel">
           <div class="panel-heading">
-            <p class="panel-kicker">1. Capture library</p>
-            <h2>Upload or take a photo</h2>
+            <p class="panel-kicker">Mapped shelves</p>
+            <h2>What is indexed</h2>
+          </div>
+          <div id="mapLibraryList" class="map-library-list">
+            <div class="result-empty">Saved libraries will appear here after the map loads.</div>
+          </div>
+        </section>
+
+        <section id="searchPanel" class="panel search-panel">
+          <div class="panel-heading">
+            <p class="panel-kicker">Results</p>
+            <h2>Nearest matches by shelf</h2>
+          </div>
+
+          <div id="searchResults" class="results-list">
+            <div class="result-empty">Search results will appear here with the nearest matching library first.</div>
+          </div>
+        </section>
+
+        <section id="contribute" class="panel capture-panel">
+          <div class="panel-heading">
+            <p class="panel-kicker">Contribute</p>
+            <h2>Add a shelf with two photo roles</h2>
           </div>
 
           <form id="captureForm" class="stack">
-            <label class="file-drop" for="photoInput">
-              <input id="photoInput" name="photo" type="file" accept="image/*" capture="environment" />
-              <span class="file-title">Choose a sidewalk library photo</span>
-              <span class="file-hint">JPEG works best when EXIF GPS is available.</span>
-            </label>
+            <div class="photo-role-grid">
+              <label class="file-drop role-books" for="booksPhotoInput">
+                <input id="booksPhotoInput" name="books_photo" type="file" accept="image/*" capture="environment" />
+                <span class="role-pill">Books photo</span>
+                <span class="file-title">Close-up of readable spines</span>
+                <span class="file-hint">Used for OCR/vision extraction. This is the required photo.</span>
+              </label>
+
+              <label class="file-drop role-location" for="locationPhotoInput">
+                <input id="locationPhotoInput" name="location_photo" type="file" accept="image/*" capture="environment" />
+                <span class="role-pill">Locator photo</span>
+                <span class="file-title">Wide shot of the mini bookcase</span>
+                <span class="file-hint">Used as the search-result icon so people can find it outside.</span>
+              </label>
+            </div>
 
             <div class="capture-actions">
               <button type="button" class="secondary-button" id="useCaptureLocation">Use my location</button>
               <span class="microcopy" id="captureLocationStatus">No browser location attached yet.</span>
             </div>
 
-            <button type="submit" class="primary-button">Analyze Photo</button>
+            <button type="submit" class="primary-button">Analyze Books Photo</button>
           </form>
 
-          <div class="preview-frame">
-            <img id="photoPreview" alt="Selected library preview" hidden />
-            <div id="previewPlaceholder" class="preview-placeholder">
-              <p>Photo preview appears here before analysis.</p>
+          <div class="preview-grid">
+            <div class="preview-frame">
+              <div class="preview-label">Books extraction</div>
+              <img id="booksPhotoPreview" alt="Selected books photo preview" hidden />
+              <div id="booksPreviewPlaceholder" class="preview-placeholder">
+                <p>Book-spine preview appears here before analysis.</p>
+              </div>
+            </div>
+            <div class="preview-frame">
+              <div class="preview-label">Location icon</div>
+              <img id="locationPhotoPreview" alt="Selected location photo preview" hidden />
+              <div id="locationPreviewPlaceholder" class="preview-placeholder">
+                <p>Optional locator photo appears here.</p>
+              </div>
             </div>
           </div>
         </section>
 
         <section class="panel analysis-panel">
           <div class="panel-heading">
-            <p class="panel-kicker">2. Review extraction</p>
+            <p class="panel-kicker">Review</p>
             <h2>Confirm geolocation and books</h2>
           </div>
 
@@ -148,48 +239,6 @@
             <button type="submit" class="primary-button">Save Library To Atlas</button>
           </form>
         </section>
-
-        <section class="panel search-panel">
-          <div class="panel-heading">
-            <p class="panel-kicker">3. Find nearby copies</p>
-            <h2>Search the shared atlas</h2>
-          </div>
-
-          <form id="searchForm" class="stack">
-            <label>
-              <span>Book title, author, or ISBN</span>
-              <input id="searchQuery" type="text" placeholder="Parable of the Sower, Octavia Butler, 978..." />
-            </label>
-
-            <div class="field-grid slim">
-              <label>
-                <span>Your latitude</span>
-                <input id="searchLatitude" type="number" step="any" />
-              </label>
-              <label>
-                <span>Your longitude</span>
-                <input id="searchLongitude" type="number" step="any" />
-              </label>
-              <label>
-                <span>Radius (miles)</span>
-                <input id="searchRadius" type="number" min="1" step="1" value="25" />
-              </label>
-            </div>
-
-            <div class="capture-actions">
-              <button type="button" class="secondary-button" id="useSearchLocation">Use my location</button>
-              <span class="microcopy" id="searchLocationStatus">Distance ranking works best with your location.</span>
-            </div>
-
-            <button type="submit" class="primary-button">Find Closest Match</button>
-          </form>
-
-          <div id="searchResults" class="results-list">
-            <div class="result-empty">
-              Search results will appear here with the nearest matching library first.
-            </div>
-          </div>
-        </section>
       </main>
     </div>
 
@@ -209,6 +258,11 @@
       </tr>
     </template>
 
+    <script
+      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+      crossorigin=""
+    ></script>
     <script src="/app.js" defer></script>
   </body>
 </html>

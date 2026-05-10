@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Little Library Atlas</title>
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+      crossorigin=""
+    />
+    <link rel="stylesheet" href="./styles.css" />
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+  </head>
+  <body>
+    <main class="page-shell">
+      <header class="hero">
+        <div>
+          <p class="eyebrow">Community book-finding network</p>
+          <h1>Find a nearby shelf copy.</h1>
+          <p class="lede">
+            Search the public snapshot of Little Library Atlas. The map and results are generated from the shared database, with
+            photos intentionally left out of the GitHub Pages export.
+          </p>
+        </div>
+        <aside class="stats-card" aria-label="Atlas snapshot">
+          <span><strong id="libraryCount">0</strong> libraries</span>
+          <span><strong id="bookCount">0</strong> books</span>
+          <small id="generatedAt">Loading snapshot...</small>
+        </aside>
+      </header>
+
+      <section class="workspace">
+        <section class="panel search-panel" aria-labelledby="searchTitle">
+          <p class="eyebrow">Book search</p>
+          <h2 id="searchTitle">Look for a book</h2>
+          <form id="searchForm" class="search-form">
+            <label for="searchQuery">Title, author, topic, ISBN, or publisher</label>
+            <input id="searchQuery" type="search" placeholder="Try Tangerine, Praxis, gardening, Ian Rankin..." autocomplete="off" />
+
+            <div class="field-grid">
+              <label>
+                Latitude
+                <input id="latitude" type="number" step="any" placeholder="optional" />
+              </label>
+              <label>
+                Longitude
+                <input id="longitude" type="number" step="any" placeholder="optional" />
+              </label>
+              <label>
+                Radius
+                <select id="radiusMiles">
+                  <option value="5">5 mi</option>
+                  <option value="10">10 mi</option>
+                  <option value="25" selected>25 mi</option>
+                  <option value="100">100 mi</option>
+                  <option value="">Any</option>
+                </select>
+              </label>
+            </div>
+
+            <div class="button-row">
+              <button type="submit">Search atlas</button>
+              <button type="button" id="useLocation" class="secondary">Use my location</button>
+            </div>
+            <p id="locationStatus" class="note">Distance sorting works best with your location.</p>
+          </form>
+
+          <div class="quick-searches" aria-label="Quick searches">
+            <button type="button" data-query="non-fiction">Non-fiction</button>
+            <button type="button" data-query="kids">Kids</button>
+            <button type="button" data-query="mystery">Mystery</button>
+            <button type="button" data-query="test prep">Test prep</button>
+            <button type="button" data-query="gardening">Gardening</button>
+          </div>
+
+          <div id="results" class="results" aria-live="polite"></div>
+        </section>
+
+        <section class="panel map-panel" aria-labelledby="mapTitle">
+          <div class="map-heading">
+            <div>
+              <p class="eyebrow">Live static snapshot</p>
+              <h2 id="mapTitle">Zoomable library map</h2>
+            </div>
+            <button type="button" id="fitMarkers" class="secondary compact">Fit markers</button>
+          </div>
+          <div id="map" class="map" role="application" aria-label="Zoomable map of indexed mini libraries">
+            <div class="map-loading">Loading map...</div>
+          </div>
+          <p id="mapStatus" class="note">Markers come from geolocated library records.</p>
+          <div id="libraryList" class="library-list"></div>
+        </section>
+      </section>
+    </main>
+
+    <script
+      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+      crossorigin=""
+    ></script>
+    <script src="./app.js" defer></script>
+  </body>
+</html>

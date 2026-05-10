@@ -26,11 +26,38 @@ DATA_DIR = BASE_DIR / "data"
 STATIC_DIR = BASE_DIR / "static"
 UPLOADS_DIR = DATA_DIR / "uploads"
 DB_PATH = DATA_DIR / "little_library_atlas.db"
+MAP_OUTPUT_PATH = Path(os.getenv("LIBRARY_MAP_PATH", str(BASE_DIR / "assets" / "library-map.svg")))
+PAGES_DATA_PATH = Path(os.getenv("LIBRARY_PAGES_DATA_PATH", str(BASE_DIR / "docs" / "atlas-data.json")))
 
 HOST = os.getenv("HOST", "127.0.0.1")
 PORT = int(os.getenv("PORT", "8000"))
 DEFAULT_RADIUS_MILES = 25.0
 MAX_IMAGE_BYTES = 25 * 1024 * 1024
+
+NONFICTION_MARKERS = (
+    "history",
+    "biography",
+    "travel",
+    "health",
+    "nutrition",
+    "gardening",
+    "garden",
+    "houseplants",
+    "landscape",
+    "herbs",
+    "fitness",
+    "yoga",
+    "careers",
+)
+FICTION_MARKERS = ("fiction", "film", "dvd")
+CATEGORY_MARKERS = {
+    "kids": ("children", "middle grade", "young adult", "bilingual", "mythology"),
+    "gardening": ("gardening", "garden", "houseplants", "landscape", "herbs", "greenhouse", "plants"),
+    "travel": ("travel", "paris", "italy", "florence", "tuscany"),
+    "history": ("history", "biography", "civil war", "lincoln", "appomattox"),
+    "wellness": ("health", "nutrition", "fitness", "yoga"),
+    "media": ("dvd", "film"),
+}
 
 OPENAI_API_URL = "https://api.openai.com/v1/responses"
 DEFAULT_OPENAI_MODEL = os.getenv("OPENAI_VISION_MODEL", "gpt-4.1-mini")
@@ -140,6 +167,15 @@ def get_connection() -> sqlite3.Connection:
     return connection
 
 
+def ensure_column(connection: sqlite3.Connection, table: str, column: str, definition: str) -> None:
+    columns = {
+        row["name"]
+        for row in connection.execute(f"PRAGMA table_info({table})").fetchall()
+    }
+    if column not in columns:
+        connection.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
+
+
 def initialize_database() -> None:
     ensure_directories()
     with get_connection() as connection:
@@ -155,6 +191,8 @@ def initialize_database() -> None:
                 location_confidence REAL NOT NULL DEFAULT 0,
                 browser_accuracy_meters REAL,
                 photo_path TEXT,
+                books_photo_path TEXT,
+                location_photo_path TEXT,
                 place_clues TEXT,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
             );
@@ -182,6 +220,48 @@ def initialize_database() -> None:
             CREATE INDEX IF NOT EXISTS idx_libraries_coords ON libraries(latitude, longitude);
             """
         )
+        ensure_column(connection, "libraries", "books_photo_path", "TEXT")
+        ensure_column(connection, "libraries", "location_photo_path", "TEXT")
+
+
+def should_refresh_library_map() -> bool:
+    if os.getenv("LITTLE_LIBRARY_DISABLE_MAP_RENDER") == "1":
+        return False
+    if "LIBRARY_MAP_PATH" in os.environ:
+        return True
+    return DB_PATH.resolve() == (DATA_DIR / "little_library_atlas.db").resolve()
+
+
+def refresh_library_map() -> None:
+    if not should_refresh_library_map():
+        return
+
+    try:
+        from scripts.render_library_map import render_library_map
+
+        render_library_map(DB_PATH, MAP_OUTPUT_PATH)
+    except Exception as error:
+        print(f"Warning: library map refresh failed: {error}")
+
+
+def should_refresh_pages_data() -> bool:
+    if os.getenv("LITTLE_LIBRARY_DISABLE_PAGES_EXPORT") == "1":
+        return False
+    if "LIBRARY_PAGES_DATA_PATH" in os.environ:
+        return True
+    return DB_PATH.resolve() == (DATA_DIR / "little_library_atlas.db").resolve()
+
+
+def refresh_pages_data() -> None:
+    if not should_refresh_pages_data():
+        return
+
+    try:
+        from scripts.export_github_pages import export_pages_data
+
+        export_pages_data(DB_PATH, PAGES_DATA_PATH)
+    except Exception as error:
+        print(f"Warning: GitHub Pages data export failed: {error}")
 
 
 def normalize_text(value: Any) -> str:
@@ -240,7 +320,10 @@ def save_uploaded_image(upload: dict[str, Any]) -> tuple[Path, str, str]:
 
     upload_path = unique_upload_path(upload.get("filename"))
     upload_path.write_bytes(image_bytes)
-    photo_path = upload_path.relative_to(BASE_DIR).as_posix()
+    try:
+        photo_path = upload_path.relative_to(BASE_DIR).as_posix()
+    except ValueError:
+        photo_path = f"data/uploads/{upload_path.name}"
     return upload_path, photo_path, f"/{photo_path}"
 
 
@@ -257,7 +340,7 @@ def parse_multipart_form_data(handler: BaseHTTPRequestHandler) -> tuple[dict[str
 
     content_length = int(handler.headers.get("Content-Length", "0"))
     body = handler.rfile.read(content_length)
-    if len(body) > MAX_IMAGE_BYTES + (2 * 1024 * 1024):
+    if len(body) > (MAX_IMAGE_BYTES * 2) + (2 * 1024 * 1024):
         raise ValueError("Upload is too large")
 
     header = f"Content-Type: {content_type}\r\nMIME-Version: 1.0\r\n\r\n".encode("utf-8")
@@ -468,11 +551,10 @@ def extract_exif_gps(image_bytes: bytes) -> GeoPoint | None:
     return None
 
 
-def choose_best_location(exif_location: GeoPoint | None, browser_location: GeoPoint | None) -> GeoPoint | None:
-    if exif_location:
-        return exif_location
-    if browser_location:
-        return browser_location
+def choose_best_location(*locations: GeoPoint | None) -> GeoPoint | None:
+    for location in locations:
+        if location:
+            return location
     return None
 
 
@@ -636,7 +718,8 @@ def normalize_model_analysis(data: dict[str, Any]) -> dict[str, Any]:
 
 def build_analysis_response(
     filename: str,
-    photo_url: str,
+    books_photo_url: str,
+    location_photo_url: str | None,
     location: GeoPoint | None,
     model_output: dict[str, Any] | None,
     warnings: list[str],
@@ -665,7 +748,9 @@ def build_analysis_response(
 
     return {
         "photo_filename": filename,
-        "photo_url": photo_url,
+        "photo_url": location_photo_url or books_photo_url,
+        "books_photo_url": books_photo_url,
+        "location_photo_url": location_photo_url,
         "library_name": library_name,
         "library_description": output["library_description"],
         "photo_summary": output["photo_summary"],
@@ -679,7 +764,10 @@ def build_analysis_response(
 def insert_library(payload: dict[str, Any]) -> int:
     library_name = str(payload.get("library_name") or "").strip() or f"Sidewalk Library {datetime.now().strftime('%b %d')}"
     description = str(payload.get("library_description") or "").strip()
-    photo_path = str(payload.get("photo_path") or "").strip()
+    books_photo_path = str(payload.get("books_photo_path") or "").strip()
+    location_photo_path = str(payload.get("location_photo_path") or "").strip()
+    legacy_photo_path = str(payload.get("photo_path") or "").strip()
+    photo_path = location_photo_path or books_photo_path or legacy_photo_path
     place_clues = json.dumps(payload.get("place_clues", []))
 
     geo = payload.get("geolocation") or {}
@@ -708,9 +796,11 @@ def insert_library(payload: dict[str, Any]) -> int:
                 location_confidence,
                 browser_accuracy_meters,
                 photo_path,
+                books_photo_path,
+                location_photo_path,
                 place_clues
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 library_name,
@@ -721,6 +811,8 @@ def insert_library(payload: dict[str, Any]) -> int:
                 confidence,
                 accuracy_meters,
                 photo_path,
+                books_photo_path,
+                location_photo_path,
                 place_clues,
             ),
         )
@@ -769,6 +861,8 @@ def insert_library(payload: dict[str, Any]) -> int:
                 ),
             )
 
+    refresh_library_map()
+    refresh_pages_data()
     return library_id
 
 
@@ -780,10 +874,41 @@ def get_counts() -> dict[str, int]:
     return {"libraries": int(library_count), "books": int(book_count)}
 
 
-def search_books(query: str, latitude: float | None, longitude: float | None, radius_miles: float) -> list[dict[str, Any]]:
+def category_matches(row: sqlite3.Row, category: str) -> bool:
+    normalized_category = normalize_text(category).replace(" ", "-")
+    if not normalized_category:
+        return True
+
+    text = build_search_blob(
+        row["title"],
+        row["author"],
+        row["publisher"],
+        row["genre"],
+        row["format"],
+        row["notes"],
+    )
+
+    if normalized_category in {"non-fiction", "nonfiction"}:
+        has_nonfiction_signal = any(marker in text for marker in NONFICTION_MARKERS)
+        has_fiction_signal = any(marker in normalize_text(row["genre"]) for marker in FICTION_MARKERS)
+        return has_nonfiction_signal and not has_fiction_signal
+
+    markers = CATEGORY_MARKERS.get(normalized_category)
+    if not markers:
+        return True
+    return any(marker in text for marker in markers)
+
+
+def search_books(
+    query: str,
+    latitude: float | None,
+    longitude: float | None,
+    radius_miles: float,
+    category: str = "",
+) -> list[dict[str, Any]]:
     normalized_query = normalize_text(query)
     terms = [term for term in normalized_query.split(" ") if term]
-    if not terms:
+    if not terms and not normalize_text(category):
         return []
 
     sql = """
@@ -799,6 +924,7 @@ def search_books(query: str, latitude: float | None, longitude: float | None, ra
             b.condition,
             b.confidence,
             b.notes,
+            b.search_blob,
             l.id AS library_id,
             l.name AS library_name,
             l.description AS library_description,
@@ -806,7 +932,9 @@ def search_books(query: str, latitude: float | None, longitude: float | None, ra
             l.longitude,
             l.location_source,
             l.location_confidence,
-            l.photo_path
+            l.photo_path,
+            l.books_photo_path,
+            l.location_photo_path
         FROM books b
         JOIN libraries l ON l.id = b.library_id
     """
@@ -817,7 +945,8 @@ def search_books(query: str, latitude: float | None, longitude: float | None, ra
         where_clauses.append("b.search_blob LIKE ?")
         params.append(f"%{term}%")
 
-    sql += " WHERE " + " AND ".join(where_clauses)
+    if where_clauses:
+        sql += " WHERE " + " AND ".join(where_clauses)
     sql += " ORDER BY b.confidence DESC, l.location_confidence DESC, b.title ASC"
 
     results: list[dict[str, Any]] = []
@@ -827,11 +956,15 @@ def search_books(query: str, latitude: float | None, longitude: float | None, ra
     for row in rows:
         row_lat = row["latitude"]
         row_lon = row["longitude"]
+        books_photo_path = row["books_photo_path"] or row["photo_path"]
+        location_photo_path = row["location_photo_path"] or row["photo_path"] or row["books_photo_path"]
         distance_miles = None
         if latitude is not None and longitude is not None and row_lat is not None and row_lon is not None:
             distance_miles = haversine_miles(latitude, longitude, row_lat, row_lon)
             if distance_miles > radius_miles:
                 continue
+        if not category_matches(row, category):
+            continue
 
         results.append(
             {
@@ -854,7 +987,9 @@ def search_books(query: str, latitude: float | None, longitude: float | None, ra
                     "longitude": row["longitude"],
                     "location_source": row["location_source"],
                     "location_confidence": row["location_confidence"],
-                    "photo_url": f"/{row['photo_path'].replace(os.sep, '/')}" if row["photo_path"] else None,
+                    "photo_url": f"/{location_photo_path.replace(os.sep, '/')}" if location_photo_path else None,
+                    "books_photo_url": f"/{books_photo_path.replace(os.sep, '/')}" if books_photo_path else None,
+                    "location_photo_url": f"/{location_photo_path.replace(os.sep, '/')}" if location_photo_path else None,
                 },
                 "distance_miles": distance_miles,
             }
@@ -869,6 +1004,60 @@ def search_books(query: str, latitude: float | None, longitude: float | None, ra
         )
     )
     return results[:30]
+
+
+def list_libraries() -> list[dict[str, Any]]:
+    sql = """
+        SELECT
+            l.id,
+            l.name,
+            l.description,
+            l.latitude,
+            l.longitude,
+            l.location_source,
+            l.location_confidence,
+            l.photo_path,
+            l.books_photo_path,
+            l.location_photo_path,
+            l.place_clues,
+            COUNT(b.id) AS book_count,
+            GROUP_CONCAT(b.title, '||') AS book_titles
+        FROM libraries l
+        LEFT JOIN books b ON b.library_id = l.id
+        GROUP BY l.id
+        ORDER BY l.created_at DESC, l.id DESC
+    """
+    libraries: list[dict[str, Any]] = []
+    with get_connection() as connection:
+        rows = connection.execute(sql).fetchall()
+
+    for row in rows:
+        books_photo_path = row["books_photo_path"] or row["photo_path"]
+        location_photo_path = row["location_photo_path"] or row["photo_path"] or row["books_photo_path"]
+        book_titles = [title for title in (row["book_titles"] or "").split("||") if title]
+        try:
+            place_clues = json.loads(row["place_clues"] or "[]")
+        except json.JSONDecodeError:
+            place_clues = []
+        libraries.append(
+            {
+                "id": row["id"],
+                "name": row["name"],
+                "description": row["description"],
+                "latitude": row["latitude"],
+                "longitude": row["longitude"],
+                "location_source": row["location_source"],
+                "location_confidence": row["location_confidence"],
+                "photo_url": f"/{location_photo_path.replace(os.sep, '/')}" if location_photo_path else None,
+                "books_photo_url": f"/{books_photo_path.replace(os.sep, '/')}" if books_photo_path else None,
+                "location_photo_url": f"/{location_photo_path.replace(os.sep, '/')}" if location_photo_path else None,
+                "place_clues": place_clues,
+                "book_count": int(row["book_count"] or 0),
+                "sample_books": book_titles[:5],
+            }
+        )
+
+    return libraries
 
 
 class LibraryAtlasHandler(BaseHTTPRequestHandler):
@@ -896,6 +1085,10 @@ class LibraryAtlasHandler(BaseHTTPRequestHandler):
                     "model": DEFAULT_OPENAI_MODEL,
                 }
             )
+            return
+        if path == "/api/libraries":
+            libraries = list_libraries()
+            self.send_json({"libraries": libraries, "count": len(libraries)})
             return
         if path.startswith("/data/uploads/"):
             relative = path.lstrip("/")
@@ -950,34 +1143,53 @@ class LibraryAtlasHandler(BaseHTTPRequestHandler):
     def handle_analyze_photo(self) -> None:
         try:
             fields, files = parse_multipart_form_data(self)
-            upload = files.get("photo")
-            if not upload:
-                self.send_json({"error": "A photo file is required."}, HTTPStatus.BAD_REQUEST)
+            books_upload = files.get("books_photo") or files.get("photo")
+            location_upload = files.get("location_photo")
+            if not books_upload:
+                self.send_json({"error": "A books photo is required for extraction."}, HTTPStatus.BAD_REQUEST)
                 return
 
-            image_bytes = upload["data"]
-            upload_path, _photo_path, photo_url = save_uploaded_image(upload)
-            mime_type = upload.get("content_type") or mimetypes.guess_type(upload_path.name)[0] or "image/jpeg"
+            books_image_bytes = books_upload["data"]
+            books_upload_path, _books_photo_path, books_photo_url = save_uploaded_image(books_upload)
+            location_photo_url = None
+            location_image_bytes = None
+            if location_upload and location_upload.get("data"):
+                _location_upload_path, _location_photo_path, location_photo_url = save_uploaded_image(location_upload)
+                location_image_bytes = location_upload["data"]
+
+            mime_type = books_upload.get("content_type") or mimetypes.guess_type(books_upload_path.name)[0] or "image/jpeg"
 
             browser_location = build_browser_location(fields)
-            exif_location = extract_exif_gps(image_bytes)
-            location = choose_best_location(exif_location, browser_location)
+            location_photo_exif = extract_exif_gps(location_image_bytes) if location_image_bytes else None
+            if location_photo_exif:
+                location_photo_exif.source = "location_photo_exif"
+            books_photo_exif = extract_exif_gps(books_image_bytes)
+            if books_photo_exif:
+                books_photo_exif.source = "books_photo_exif"
+            location = choose_best_location(location_photo_exif, books_photo_exif, browser_location)
 
             warnings: list[str] = []
-            if not exif_location and not browser_location:
+            if not location_photo_exif and not books_photo_exif and not browser_location:
                 warnings.append(
                     "No photo EXIF GPS or browser geolocation was available, so the location fields still need manual confirmation."
                 )
 
             model_output: dict[str, Any] | None = None
             try:
-                model_output = call_openai_for_books(image_bytes, mime_type)
+                model_output = call_openai_for_books(books_image_bytes, mime_type)
             except RuntimeError as error:
                 warnings.append(
                     f"Automated book extraction is unavailable right now: {error}. You can still add or correct books manually before saving."
                 )
 
-            response_payload = build_analysis_response(upload_path.name, photo_url, location, model_output, warnings)
+            response_payload = build_analysis_response(
+                books_upload_path.name,
+                books_photo_url,
+                location_photo_url,
+                location,
+                model_output,
+                warnings,
+            )
             self.send_json(response_payload)
         except ValueError as error:
             self.send_json({"error": str(error)}, HTTPStatus.BAD_REQUEST)
@@ -997,23 +1209,33 @@ class LibraryAtlasHandler(BaseHTTPRequestHandler):
                 self.send_json({"error": "Payload must be a JSON object."}, HTTPStatus.BAD_REQUEST)
                 return
 
-            photo_url = None
-            upload = files.get("photo")
-            if upload and upload.get("data"):
-                _upload_path, photo_path, photo_url = save_uploaded_image(upload)
-                payload["photo_path"] = photo_path
-            else:
-                # Do not store device-local paths such as content:// URIs in the central database.
-                photo_path = str(payload.get("photo_path") or "")
-                if not photo_path.startswith("data/uploads/"):
-                    payload["photo_path"] = ""
+            books_photo_url = None
+            location_photo_url = None
+            books_upload = files.get("books_photo")
+            location_upload = files.get("location_photo") or files.get("photo")
+
+            if books_upload and books_upload.get("data"):
+                _upload_path, books_photo_path, books_photo_url = save_uploaded_image(books_upload)
+                payload["books_photo_path"] = books_photo_path
+            if location_upload and location_upload.get("data"):
+                _upload_path, location_photo_path, location_photo_url = save_uploaded_image(location_upload)
+                payload["location_photo_path"] = location_photo_path
+
+            # Do not store device-local paths such as content:// URIs in the central database.
+            for key in ("photo_path", "books_photo_path", "location_photo_path"):
+                photo_path = str(payload.get(key) or "")
+                if photo_path and not photo_path.startswith("data/uploads/"):
+                    payload[key] = ""
+            payload["photo_path"] = payload.get("location_photo_path") or payload.get("books_photo_path") or payload.get("photo_path") or ""
 
             library_id = insert_library(payload)
             self.send_json(
                 {
                     "status": "saved",
                     "library_id": library_id,
-                    "photo_url": photo_url,
+                    "photo_url": location_photo_url or books_photo_url,
+                    "books_photo_url": books_photo_url,
+                    "location_photo_url": location_photo_url,
                     "counts": get_counts(),
                 },
                 HTTPStatus.CREATED,
@@ -1048,15 +1270,16 @@ class LibraryAtlasHandler(BaseHTTPRequestHandler):
         try:
             payload = parse_json_body(self)
             query = str(payload.get("query") or "").strip()
+            category = str(payload.get("category") or "").strip()
             latitude = to_float(payload.get("latitude"))
             longitude = to_float(payload.get("longitude"))
             radius_miles = to_float(payload.get("radius_miles")) or DEFAULT_RADIUS_MILES
 
-            if not query:
-                self.send_json({"error": "Search query is required."}, HTTPStatus.BAD_REQUEST)
+            if not query and not category:
+                self.send_json({"error": "Search query or category is required."}, HTTPStatus.BAD_REQUEST)
                 return
 
-            results = search_books(query, latitude, longitude, radius_miles)
+            results = search_books(query, latitude, longitude, radius_miles, category)
             self.send_json({"results": results, "count": len(results)})
         except json.JSONDecodeError:
             self.send_json({"error": "Request body must be valid JSON."}, HTTPStatus.BAD_REQUEST)

@@ -1,0 +1,142 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="675" viewBox="0 0 1200 675" role="img" aria-labelledby="title desc">
+  <title id="title">Little Library Atlas map</title>
+  <desc id="desc">Map of 6 geolocated mini libraries with numbered markers and book counts.</desc>
+  <defs>
+    <linearGradient id="paper" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#fff7e8"/>
+      <stop offset="1" stop-color="#e8f0dc"/>
+    </linearGradient>
+    <radialGradient id="park" cx="38%" cy="34%" r="75%">
+      <stop offset="0" stop-color="#edf8dc"/>
+      <stop offset="1" stop-color="#d1e5be"/>
+    </radialGradient>
+    <style>
+      .small { font-family: Arial, sans-serif; fill: #536158; }
+      .grid { stroke: rgba(41, 65, 47, 0.22); stroke-width: 1.2; stroke-dasharray: 7 8; }
+      .grid-label { font-family: Arial, sans-serif; font-size: 12px; fill: rgba(46, 65, 53, 0.65); }
+      .road { fill: none; stroke: rgba(255, 250, 240, 0.86); stroke-width: 18; stroke-linecap: round; }
+      .road-line { fill: none; stroke: rgba(89, 102, 78, 0.35); stroke-width: 2; stroke-linecap: round; stroke-dasharray: 10 12; }
+    </style>
+  </defs>
+  <rect width="1200" height="675" rx="34" fill="#263529"/>
+  <rect x="18" y="18" width="1164" height="639" rx="30" fill="url(#paper)"/>
+  <text x="48" y="68" fill="#1f2d24" font-family="Georgia, serif" font-size="39" font-weight="700">Little Library Atlas</text>
+  <text x="50" y="99" class="small" font-size="18">Generated map snapshot: 6 libraries, 53 books, centered near 39.0694, -76.9211</text>
+
+  <g>
+    <rect x="48" y="126" width="752" height="484" rx="28" fill="url(#park)" stroke="#253529" stroke-width="4"/>
+    <path class="road" d="M76 523 C222 454, 308 447, 398 376 S623 236, 784 204"/>
+    <path class="road-line" d="M76 523 C222 454, 308 447, 398 376 S623 236, 784 204"/>
+    <path class="road" d="M105 216 C240 260, 342 260, 468 215 S665 155, 789 182"/>
+    <path class="road-line" d="M105 216 C240 260, 342 260, 468 215 S665 155, 789 182"/>
+    <circle cx="210" cy="318" r="92" fill="rgba(92, 123, 95, 0.18)"/>
+    <circle cx="620" cy="402" r="112" fill="rgba(92, 123, 95, 0.15)"/>
+    <line x1="147.53" y1="126" x2="147.53" y2="610" class="grid"/>
+    <text x="153.53" y="600" class="grid-label">-77.134</text>
+    <line x1="285.76" y1="126" x2="285.76" y2="610" class="grid"/>
+    <text x="291.76" y="600" class="grid-label">-76.872</text>
+    <line x1="424.00" y1="126" x2="424.00" y2="610" class="grid"/>
+    <text x="430.00" y="600" class="grid-label">-76.610</text>
+    <line x1="562.24" y1="126" x2="562.24" y2="610" class="grid"/>
+    <text x="568.24" y="600" class="grid-label">-76.348</text>
+    <line x1="700.47" y1="126" x2="700.47" y2="610" class="grid"/>
+    <text x="706.47" y="600" class="grid-label">-76.087</text>
+    <line x1="48" y1="545.94" x2="800" y2="545.94" class="grid"/>
+    <text x="58" y="537.94" class="grid-label">38.877</text>
+    <line x1="48" y1="457.28" x2="800" y2="457.28" class="grid"/>
+    <text x="58" y="449.28" class="grid-label">39.043</text>
+    <line x1="48" y1="368.42" x2="800" y2="368.42" class="grid"/>
+    <text x="58" y="360.42" class="grid-label">39.208</text>
+    <line x1="48" y1="279.34" x2="800" y2="279.34" class="grid"/>
+    <text x="58" y="271.34" class="grid-label">39.374</text>
+    <line x1="48" y1="190.06" x2="800" y2="190.06" class="grid"/>
+    <text x="58" y="182.06" class="grid-label">39.539</text>
+    <g class="marker" transform="translate(700.47 190.06)">
+      <title>Blue Little Library: 13 books</title>
+      <path d="M0 -29c-18 0-32 14-32 32 0 25 32 58 32 58S32 28 32 3C32 -15 18 -29 0 -29z" fill="#c94f3d" stroke="#213226" stroke-width="4"/>
+      <circle cx="0" cy="2" r="18" fill="#fffaf0"/>
+      <text x="0" y="9" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" font-weight="800" fill="#213226">1</text>
+    </g>
+    <g class="marker" transform="translate(198.68 448.92)">
+      <title>Red and Yellow Garden Little Free Library: 8 books</title>
+      <path d="M0 -29c-18 0-32 14-32 32 0 25 32 58 32 58S32 28 32 3C32 -15 18 -29 0 -29z" fill="#e2a236" stroke="#213226" stroke-width="4"/>
+      <circle cx="0" cy="2" r="18" fill="#fffaf0"/>
+      <text x="0" y="9" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" font-weight="800" fill="#213226">2</text>
+    </g>
+    <g class="marker" transform="translate(199.74 448.41)">
+      <title>Blue Greenhouse Little Free Library: 2 books</title>
+      <path d="M0 -29c-18 0-32 14-32 32 0 25 32 58 32 58S32 28 32 3C32 -15 18 -29 0 -29z" fill="#477c66" stroke="#213226" stroke-width="4"/>
+      <circle cx="0" cy="2" r="18" fill="#fffaf0"/>
+      <text x="0" y="9" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" font-weight="800" fill="#213226">3</text>
+    </g>
+    <g class="marker" transform="translate(147.53 545.09)">
+      <title>White Garden Little Free Library: 15 books</title>
+      <path d="M0 -29c-18 0-32 14-32 32 0 25 32 58 32 58S32 28 32 3C32 -15 18 -29 0 -29z" fill="#416c9f" stroke="#213226" stroke-width="4"/>
+      <circle cx="0" cy="2" r="18" fill="#fffaf0"/>
+      <text x="0" y="9" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" font-weight="800" fill="#213226">4</text>
+    </g>
+    <g class="marker" transform="translate(147.62 545.94)">
+      <title>Gray Floral Park Little Free Library: 7 books</title>
+      <path d="M0 -29c-18 0-32 14-32 32 0 25 32 58 32 58S32 28 32 3C32 -15 18 -29 0 -29z" fill="#8c5b92" stroke="#213226" stroke-width="4"/>
+      <circle cx="0" cy="2" r="18" fill="#fffaf0"/>
+      <text x="0" y="9" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" font-weight="800" fill="#213226">5</text>
+    </g>
+    <g class="marker" transform="translate(165.30 477.73)">
+      <title>Indoor Take-a-Book Rack: 8 books</title>
+      <path d="M0 -29c-18 0-32 14-32 32 0 25 32 58 32 58S32 28 32 3C32 -15 18 -29 0 -29z" fill="#7a633c" stroke="#213226" stroke-width="4"/>
+      <circle cx="0" cy="2" r="18" fill="#fffaf0"/>
+      <text x="0" y="9" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" font-weight="800" fill="#213226">6</text>
+    </g>
+    <text x="72" y="162" font-family="Arial, sans-serif" font-size="17" font-weight="800" fill="#263529">Geolocated library markers</text>
+    <text x="72" y="588" class="small" font-size="14">SVG uses Web Mercator projection and local database coordinates.</text>
+  </g>
+
+  <g>
+    <rect x="800" y="126" width="336" height="484" rx="28" fill="#fffaf0" stroke="#253529" stroke-width="3"/>
+    <text x="830" y="153" font-family="Arial, sans-serif" font-size="20" font-weight="900" fill="#1f2d24">Libraries</text>
+    <g transform="translate(832 166)">
+      <circle cx="0" cy="-8" r="18" fill="#c94f3d" stroke="#213226" stroke-width="3"/>
+      <text x="0" y="-1" text-anchor="middle" font-family="Arial, sans-serif" font-size="17" font-weight="800" fill="#fffaf0">1</text>
+      <text x="32" y="-16" font-family="Arial, sans-serif" font-size="19" font-weight="800" fill="#1f2d24">Blue Little Library</text>
+      <text x="32" y="8" font-family="Arial, sans-serif" font-size="15" fill="#536158">13 books at 39.5394, -76.0867</text>
+      <text x="32" y="30" font-family="Arial, sans-serif" font-size="13" fill="#7a8079">A bright blue sidewalk little library with a mixed shelf of travel guides, history, fiction, h...</text>
+    </g>
+    <g transform="translate(832 234)">
+      <circle cx="0" cy="-8" r="18" fill="#e2a236" stroke="#213226" stroke-width="3"/>
+      <text x="0" y="-1" text-anchor="middle" font-family="Arial, sans-serif" font-size="17" font-weight="800" fill="#fffaf0">2</text>
+      <text x="32" y="-16" font-family="Arial, sans-serif" font-size="19" font-weight="800" fill="#1f2d24">Red and Yellow Garden Little Free Library</text>
+      <text x="32" y="8" font-family="Arial, sans-serif" font-size="15" fill="#536158">8 books at 39.0581, -77.0371</text>
+      <text x="32" y="30" font-family="Arial, sans-serif" font-size="13" fill="#7a8079">A red-and-yellow Little Free Library beside a garden path, with plant-label shingles on the ro...</text>
+    </g>
+    <g transform="translate(832 302)">
+      <circle cx="0" cy="-8" r="18" fill="#477c66" stroke="#213226" stroke-width="3"/>
+      <text x="0" y="-1" text-anchor="middle" font-family="Arial, sans-serif" font-size="17" font-weight="800" fill="#fffaf0">3</text>
+      <text x="32" y="-16" font-family="Arial, sans-serif" font-size="19" font-weight="800" fill="#1f2d24">Blue Greenhouse Little Free Library</text>
+      <text x="32" y="8" font-family="Arial, sans-serif" font-size="15" fill="#536158">2 books at 39.0591, -77.0351</text>
+      <text x="32" y="30" font-family="Arial, sans-serif" font-size="13" fill="#7a8079">A hand-painted blue Little Free Library inside a greenhouse, surrounded by tropical plants and...</text>
+    </g>
+    <g transform="translate(832 370)">
+      <circle cx="0" cy="-8" r="18" fill="#416c9f" stroke="#213226" stroke-width="3"/>
+      <text x="0" y="-1" text-anchor="middle" font-family="Arial, sans-serif" font-size="17" font-weight="800" fill="#fffaf0">4</text>
+      <text x="32" y="-16" font-family="Arial, sans-serif" font-size="19" font-weight="800" fill="#1f2d24">White Garden Little Free Library</text>
+      <text x="32" y="8" font-family="Arial, sans-serif" font-size="15" fill="#536158">15 books at 38.8785, -77.1339</text>
+      <text x="32" y="30" font-family="Arial, sans-serif" font-size="13" fill="#7a8079">A white Little Free Library on a black post in a residential front garden, with a porch, lamp ...</text>
+    </g>
+    <g transform="translate(832 438)">
+      <circle cx="0" cy="-8" r="18" fill="#8c5b92" stroke="#213226" stroke-width="3"/>
+      <text x="0" y="-1" text-anchor="middle" font-family="Arial, sans-serif" font-size="17" font-weight="800" fill="#fffaf0">5</text>
+      <text x="32" y="-16" font-family="Arial, sans-serif" font-size="19" font-weight="800" fill="#1f2d24">Gray Floral Park Little Free Library</text>
+      <text x="32" y="8" font-family="Arial, sans-serif" font-size="15" fill="#536158">7 books at 38.8769, -77.1338</text>
+      <text x="32" y="30" font-family="Arial, sans-serif" font-size="13" fill="#7a8079">A gray Little Free Library with painted purple and pink flowers, mounted on a wooden post besi...</text>
+    </g>
+    <g transform="translate(832 506)">
+      <circle cx="0" cy="-8" r="18" fill="#7a633c" stroke="#213226" stroke-width="3"/>
+      <text x="0" y="-1" text-anchor="middle" font-family="Arial, sans-serif" font-size="17" font-weight="800" fill="#fffaf0">6</text>
+      <text x="32" y="-16" font-family="Arial, sans-serif" font-size="19" font-weight="800" fill="#1f2d24">Indoor Take-a-Book Rack</text>
+      <text x="32" y="8" font-family="Arial, sans-serif" font-size="15" fill="#536158">8 books at 39.0043, -77.1003</text>
+      <text x="32" y="30" font-family="Arial, sans-serif" font-size="13" fill="#7a8079">An indoor take-a-book, leave-a-book rack with wire shelves, posted against a wall with a large...</text>
+    </g>
+  </g>
+
+  <text x="48" y="644" class="small" font-size="14">Updated 2026-05-09 21:07 UTC by scripts/render_library_map.py. Photo uploads and SQLite data stay out of Git.</text>
+</svg>
