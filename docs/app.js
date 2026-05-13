@@ -76,6 +76,11 @@ function formatCoordinate(value) {
   return Number.isFinite(Number(value)) ? Number(value).toFixed(4) : "unknown";
 }
 
+function formatCount(count, singular, plural = `${singular}s`) {
+  const value = Number(count || 0);
+  return `${value} ${value === 1 ? singular : plural}`;
+}
+
 function formatGeneratedAt(value) {
   if (!value) {
     return "Snapshot date unavailable";
@@ -123,6 +128,109 @@ async function lookupZipCode(value) {
 
 function hasCoordinates(library) {
   return library && library.latitude !== null && library.latitude !== undefined && library.longitude !== null && library.longitude !== undefined;
+}
+
+function toTitleCase(value) {
+  return String(value || "")
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((word) => {
+      if (word.toUpperCase() === word && word.length <= 4) {
+        return word;
+      }
+      return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+    })
+    .join(" ");
+}
+
+function primaryGenre(value) {
+  const raw = String(value || "").trim();
+  if (!raw) {
+    return "Uncategorized";
+  }
+
+  return toTitleCase(raw.split(/[\/|,;]/)[0].replace(/\s+/g, " ").trim() || "Uncategorized");
+}
+
+function buildLibraryGenreSummary(libraryId) {
+  const books = Array.isArray(state.data?.books) ? state.data.books : [];
+  const genres = new Map();
+
+  books
+    .filter((book) => String(book.library_id) === String(libraryId))
+    .forEach((book) => {
+      const genreName = primaryGenre(book.genre);
+      const title = String(book.title || "Untitled").trim() || "Untitled";
+      if (!genres.has(genreName)) {
+        genres.set(genreName, {
+          name: genreName,
+          count: 0,
+          books: new Map(),
+        });
+      }
+
+      const genre = genres.get(genreName);
+      genre.count += 1;
+      genre.books.set(title, (genre.books.get(title) || 0) + 1);
+    });
+
+  return Array.from(genres.values())
+    .map((genre) => ({
+      name: genre.name,
+      count: genre.count,
+      books: Array.from(genre.books.entries())
+        .map(([title, count]) => ({ title, count }))
+        .sort((a, b) => b.count - a.count || a.title.localeCompare(b.title))
+        .slice(0, 5),
+    }))
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
+    .slice(0, 5);
+}
+
+function renderGenreChips(summary) {
+  if (!summary.length) {
+    return `<span class="genre-chip muted">No genres yet</span>`;
+  }
+
+  return summary
+    .map((genre) => `<span class="genre-chip">${escapeHtml(genre.name)} <b>${Number(genre.count || 0)}</b></span>`)
+    .join("");
+}
+
+function renderGenreSummary(summary, title = "Top genres") {
+  if (!summary.length) {
+    return `<div class="genre-summary empty">No genre summary is available for this library yet.</div>`;
+  }
+
+  return `
+    <div class="genre-summary">
+      <p class="genre-summary-title">${escapeHtml(title)}</p>
+      ${summary
+        .map(
+          (genre) => `
+            <section class="genre-group">
+              <div class="genre-heading">
+                <strong>${escapeHtml(genre.name)}</strong>
+                <span>${formatCount(genre.count, "book")}</span>
+              </div>
+              <ol>
+                ${genre.books
+                  .map(
+                    (book) => `
+                      <li>
+                        <span>${escapeHtml(book.title)}</span>
+                        <b>${Number(book.count || 0)}</b>
+                      </li>
+                    `
+                  )
+                  .join("")}
+              </ol>
+            </section>
+          `
+        )
+        .join("")}
+    </div>
+  `;
 }
 
 function haversineMiles(lat1, lon1, lat2, lon2) {
@@ -251,16 +359,13 @@ function markerIcon(bookCount = 0) {
 }
 
 function popupHtml(library) {
-  const samples = (library.sample_books || [])
-    .slice(0, 5)
-    .map((title) => `<li>${escapeHtml(title)}</li>`)
-    .join("");
+  const genreSummary = buildLibraryGenreSummary(library.id);
   return `
     <article class="popup">
       <strong>${escapeHtml(library.name)}</strong>
       <p>${escapeHtml(library.description || "No description saved.")}</p>
       <small>${Number(library.book_count || 0)} books at ${formatCoordinate(library.latitude)}, ${formatCoordinate(library.longitude)}</small>
-      ${samples ? `<ul>${samples}</ul>` : ""}
+      ${renderGenreSummary(genreSummary, "Top genres here")}
     </article>
   `;
 }
@@ -311,6 +416,7 @@ function renderLibraries(libraries) {
   }
 
   libraries.forEach((library) => {
+    const genreSummary = buildLibraryGenreSummary(library.id);
     const card = document.createElement("article");
     card.className = "library-card";
     card.tabIndex = hasCoordinates(library) ? 0 : -1;
@@ -321,7 +427,14 @@ function renderLibraries(libraries) {
         <span>${Number(library.book_count || 0)} books</span>
         <span>${formatCoordinate(library.latitude)}, ${formatCoordinate(library.longitude)}</span>
       </div>
+      <div class="genre-chips" aria-label="Top genres">${renderGenreChips(genreSummary)}</div>
+      <details class="genre-details">
+        <summary>Top books by genre</summary>
+        ${renderGenreSummary(genreSummary, "Top 5 genres, top 5 books")}
+      </details>
     `;
+    card.querySelector(".genre-details")?.addEventListener("click", (event) => event.stopPropagation());
+    card.querySelector(".genre-details")?.addEventListener("keydown", (event) => event.stopPropagation());
     if (hasCoordinates(library)) {
       card.addEventListener("click", () => focusLibrary(library.id));
       card.addEventListener("keydown", (event) => {
