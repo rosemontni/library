@@ -324,6 +324,7 @@ h3 {
   margin-top: 1rem;
 }
 
+.database-summary-card,
 .library-card,
 .result-card,
 .empty-state {
@@ -331,6 +332,42 @@ h3 {
   border-radius: 22px;
   background: rgba(255, 253, 247, 0.78);
   padding: 1rem;
+}
+
+.database-summary-card {
+  display: grid;
+  gap: 0.2rem;
+  margin-top: 1rem;
+}
+
+.database-summary-card .note {
+  margin-top: 0.3rem;
+}
+
+.database-summary-heading {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.database-summary-heading h3 {
+  margin: 0;
+  font-size: 1.08rem;
+}
+
+.database-summary-heading .eyebrow {
+  margin-bottom: 0.18rem;
+}
+
+.database-summary-heading > span {
+  border-radius: 999px;
+  background: rgba(184, 77, 50, 0.12);
+  color: var(--rust-dark);
+  padding: 0.42rem 0.68rem;
+  font-size: 0.8rem;
+  font-weight: 900;
+  white-space: nowrap;
 }
 
 .library-card {

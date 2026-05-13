@@ -22,7 +22,7 @@ const elements = {
   map: document.getElementById("map"),
   mapStatus: document.getElementById("mapStatus"),
   fitMarkers: document.getElementById("fitMarkers"),
-  libraryList: document.getElementById("libraryList"),
+  databaseSummary: document.getElementById("databaseSummary"),
 };
 
 const LOCAL_ZIP_CENTROIDS = Object.freeze({
@@ -152,12 +152,10 @@ function primaryGenre(value) {
   return toTitleCase(raw.split(/[\/|,;]/)[0].replace(/\s+/g, " ").trim() || "Uncategorized");
 }
 
-function buildLibraryGenreSummary(libraryId) {
-  const books = Array.isArray(state.data?.books) ? state.data.books : [];
+function buildGenreSummary(books = []) {
   const genres = new Map();
 
   books
-    .filter((book) => String(book.library_id) === String(libraryId))
     .forEach((book) => {
       const genreName = primaryGenre(book.genre);
       const title = String(book.title || "Untitled").trim() || "Untitled";
@@ -199,7 +197,7 @@ function renderGenreChips(summary) {
 
 function renderGenreSummary(summary, title = "Top genres") {
   if (!summary.length) {
-    return `<div class="genre-summary empty">No genre summary is available for this library yet.</div>`;
+    return `<div class="genre-summary empty">No genre summary is available in this snapshot yet.</div>`;
   }
 
   return `
@@ -359,13 +357,11 @@ function markerIcon(bookCount = 0) {
 }
 
 function popupHtml(library) {
-  const genreSummary = buildLibraryGenreSummary(library.id);
   return `
     <article class="popup">
       <strong>${escapeHtml(library.name)}</strong>
       <p>${escapeHtml(library.description || "No description saved.")}</p>
       <small>${Number(library.book_count || 0)} books at ${formatCoordinate(library.latitude)}, ${formatCoordinate(library.longitude)}</small>
-      ${renderGenreSummary(genreSummary, "Top genres here")}
     </article>
   `;
 }
@@ -408,44 +404,31 @@ function focusLibrary(libraryId) {
   marker.openPopup();
 }
 
-function renderLibraries(libraries) {
-  elements.libraryList.innerHTML = "";
-  if (!libraries.length) {
-    elements.libraryList.innerHTML = `<div class="empty-state">No libraries are available in this snapshot yet.</div>`;
+function renderDatabaseSummary() {
+  const books = Array.isArray(state.data?.books) ? state.data.books : [];
+  const libraries = Array.isArray(state.data?.libraries) ? state.data.libraries : [];
+  const genreSummary = buildGenreSummary(books);
+
+  if (!elements.databaseSummary) {
     return;
   }
 
-  libraries.forEach((library) => {
-    const genreSummary = buildLibraryGenreSummary(library.id);
-    const card = document.createElement("article");
-    card.className = "library-card";
-    card.tabIndex = hasCoordinates(library) ? 0 : -1;
-    card.innerHTML = `
-      <h3>${escapeHtml(library.name)}</h3>
-      <p>${escapeHtml(library.description || "No description saved.")}</p>
-      <div class="card-meta">
-        <span>${Number(library.book_count || 0)} books</span>
-        <span>${formatCoordinate(library.latitude)}, ${formatCoordinate(library.longitude)}</span>
+  elements.databaseSummary.innerHTML = `
+    <div class="database-summary-heading">
+      <div>
+        <p class="eyebrow">Database overview</p>
+        <h3>Top genres across all mini libraries</h3>
       </div>
-      <div class="genre-chips" aria-label="Top genres">${renderGenreChips(genreSummary)}</div>
-      <details class="genre-details">
-        <summary>Top books by genre</summary>
-        ${renderGenreSummary(genreSummary, "Top 5 genres, top 5 books")}
-      </details>
-    `;
-    card.querySelector(".genre-details")?.addEventListener("click", (event) => event.stopPropagation());
-    card.querySelector(".genre-details")?.addEventListener("keydown", (event) => event.stopPropagation());
-    if (hasCoordinates(library)) {
-      card.addEventListener("click", () => focusLibrary(library.id));
-      card.addEventListener("keydown", (event) => {
-        if (event.key === "Enter" || event.key === " ") {
-          event.preventDefault();
-          focusLibrary(library.id);
-        }
-      });
-    }
-    elements.libraryList.appendChild(card);
-  });
+      <span>${formatCount(books.length, "book")}</span>
+    </div>
+    <div class="card-meta">
+      <span>${formatCount(libraries.length, "library", "libraries")}</span>
+      <span>${formatCount(genreSummary.length, "top genre")}</span>
+    </div>
+    <div class="genre-chips" aria-label="Top genres across the database">${renderGenreChips(genreSummary)}</div>
+    ${renderGenreSummary(genreSummary, "Top 5 genres, top 5 books")}
+    <p class="note">Counts combine matching titles across every mini library in this public snapshot.</p>
+  `;
 }
 
 function renderResults(results, query) {
@@ -538,7 +521,7 @@ async function loadData() {
   elements.generatedAt.textContent = formatGeneratedAt(state.data.generated_at);
 
   renderMap(state.data.libraries || []);
-  renderLibraries(state.data.libraries || []);
+  renderDatabaseSummary();
   renderResults([], "");
 }
 
