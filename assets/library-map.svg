@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="675" viewBox="0 0 1200 675" role="img" aria-labelledby="title desc">
   <title id="title">Little Library Atlas map</title>
-  <desc id="desc">Map of 6 geolocated mini libraries with numbered markers and book counts.</desc>
+  <desc id="desc">Map of 7 geolocated mini libraries with numbered markers and book counts.</desc>
   <defs>
     <linearGradient id="paper" x1="0" x2="1" y1="0" y2="1">
       <stop offset="0" stop-color="#fff7e8"/>
@@ -21,7 +21,7 @@
   <rect width="1200" height="675" rx="34" fill="#263529"/>
   <rect x="18" y="18" width="1164" height="639" rx="30" fill="url(#paper)"/>
   <text x="48" y="68" fill="#1f2d24" font-family="Georgia, serif" font-size="39" font-weight="700">Little Library Atlas</text>
-  <text x="50" y="99" class="small" font-size="18">Generated map snapshot: 6 libraries, 53 books, centered near 39.0694, -76.9211</text>
+  <text x="50" y="99" class="small" font-size="18">Generated map snapshot: 7 libraries, 76 books, centered near 39.1062, -76.9809</text>
 
   <g>
     <rect x="48" y="126" width="752" height="484" rx="28" fill="url(#park)" stroke="#253529" stroke-width="4"/>
@@ -32,13 +32,13 @@
     <circle cx="210" cy="318" r="92" fill="rgba(92, 123, 95, 0.18)"/>
     <circle cx="620" cy="402" r="112" fill="rgba(92, 123, 95, 0.15)"/>
     <line x1="147.53" y1="126" x2="147.53" y2="610" class="grid"/>
-    <text x="153.53" y="600" class="grid-label">-77.134</text>
+    <text x="153.53" y="600" class="grid-label">-77.339</text>
     <line x1="285.76" y1="126" x2="285.76" y2="610" class="grid"/>
-    <text x="291.76" y="600" class="grid-label">-76.872</text>
+    <text x="291.76" y="600" class="grid-label">-77.026</text>
     <line x1="424.00" y1="126" x2="424.00" y2="610" class="grid"/>
-    <text x="430.00" y="600" class="grid-label">-76.610</text>
+    <text x="430.00" y="600" class="grid-label">-76.713</text>
     <line x1="562.24" y1="126" x2="562.24" y2="610" class="grid"/>
-    <text x="568.24" y="600" class="grid-label">-76.348</text>
+    <text x="568.24" y="600" class="grid-label">-76.400</text>
     <line x1="700.47" y1="126" x2="700.47" y2="610" class="grid"/>
     <text x="706.47" y="600" class="grid-label">-76.087</text>
     <line x1="48" y1="545.94" x2="800" y2="545.94" class="grid"/>
@@ -57,35 +57,41 @@
       <circle cx="0" cy="2" r="18" fill="#fffaf0"/>
       <text x="0" y="9" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" font-weight="800" fill="#213226">1</text>
     </g>
-    <g class="marker" transform="translate(198.68 448.92)">
+    <g class="marker" transform="translate(280.92 448.92)">
       <title>Red and Yellow Garden Little Free Library: 8 books</title>
       <path d="M0 -29c-18 0-32 14-32 32 0 25 32 58 32 58S32 28 32 3C32 -15 18 -29 0 -29z" fill="#e2a236" stroke="#213226" stroke-width="4"/>
       <circle cx="0" cy="2" r="18" fill="#fffaf0"/>
       <text x="0" y="9" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" font-weight="800" fill="#213226">2</text>
     </g>
-    <g class="marker" transform="translate(199.74 448.41)">
+    <g class="marker" transform="translate(281.80 448.41)">
       <title>Blue Greenhouse Little Free Library: 2 books</title>
       <path d="M0 -29c-18 0-32 14-32 32 0 25 32 58 32 58S32 28 32 3C32 -15 18 -29 0 -29z" fill="#477c66" stroke="#213226" stroke-width="4"/>
       <circle cx="0" cy="2" r="18" fill="#fffaf0"/>
       <text x="0" y="9" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" font-weight="800" fill="#213226">3</text>
     </g>
-    <g class="marker" transform="translate(147.53 545.09)">
+    <g class="marker" transform="translate(238.15 545.09)">
       <title>White Garden Little Free Library: 15 books</title>
       <path d="M0 -29c-18 0-32 14-32 32 0 25 32 58 32 58S32 28 32 3C32 -15 18 -29 0 -29z" fill="#416c9f" stroke="#213226" stroke-width="4"/>
       <circle cx="0" cy="2" r="18" fill="#fffaf0"/>
       <text x="0" y="9" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" font-weight="800" fill="#213226">4</text>
     </g>
-    <g class="marker" transform="translate(147.62 545.94)">
+    <g class="marker" transform="translate(238.22 545.94)">
       <title>Gray Floral Park Little Free Library: 7 books</title>
       <path d="M0 -29c-18 0-32 14-32 32 0 25 32 58 32 58S32 28 32 3C32 -15 18 -29 0 -29z" fill="#8c5b92" stroke="#213226" stroke-width="4"/>
       <circle cx="0" cy="2" r="18" fill="#fffaf0"/>
       <text x="0" y="9" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" font-weight="800" fill="#213226">5</text>
     </g>
-    <g class="marker" transform="translate(165.30 477.73)">
+    <g class="marker" transform="translate(253.01 477.73)">
       <title>Indoor Take-a-Book Rack: 8 books</title>
       <path d="M0 -29c-18 0-32 14-32 32 0 25 32 58 32 58S32 28 32 3C32 -15 18 -29 0 -29z" fill="#7a633c" stroke="#213226" stroke-width="4"/>
       <circle cx="0" cy="2" r="18" fill="#fffaf0"/>
       <text x="0" y="9" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" font-weight="800" fill="#213226">6</text>
+    </g>
+    <g class="marker" transform="translate(147.53 304.30)">
+      <title>Blue Parking Lot Little Library: 23 books</title>
+      <path d="M0 -29c-18 0-32 14-32 32 0 25 32 58 32 58S32 28 32 3C32 -15 18 -29 0 -29z" fill="#d66a72" stroke="#213226" stroke-width="4"/>
+      <circle cx="0" cy="2" r="18" fill="#fffaf0"/>
+      <text x="0" y="9" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" font-weight="800" fill="#213226">7</text>
     </g>
     <text x="72" y="162" font-family="Arial, sans-serif" font-size="17" font-weight="800" fill="#263529">Geolocated library markers</text>
     <text x="72" y="588" class="small" font-size="14">SVG uses Web Mercator projection and local database coordinates.</text>
@@ -136,7 +142,14 @@
       <text x="32" y="8" font-family="Arial, sans-serif" font-size="15" fill="#536158">8 books at 39.0043, -77.1003</text>
       <text x="32" y="30" font-family="Arial, sans-serif" font-size="13" fill="#7a8079">An indoor take-a-book, leave-a-book rack with wire shelves, posted against a wall with a large...</text>
     </g>
+    <g transform="translate(832 574)">
+      <circle cx="0" cy="-8" r="18" fill="#d66a72" stroke="#213226" stroke-width="3"/>
+      <text x="0" y="-1" text-anchor="middle" font-family="Arial, sans-serif" font-size="17" font-weight="800" fill="#fffaf0">7</text>
+      <text x="32" y="-16" font-family="Arial, sans-serif" font-size="19" font-weight="800" fill="#1f2d24">Blue Parking Lot Little Library</text>
+      <text x="32" y="8" font-family="Arial, sans-serif" font-size="15" fill="#536158">23 books at 39.3274, -77.3392</text>
+      <text x="32" y="30" font-family="Arial, sans-serif" font-size="13" fill="#7a8079">A bright blue double-door little library on a white post near grass, parked cars, and a sidewa...</text>
+    </g>
   </g>
 
-  <text x="48" y="644" class="small" font-size="14">Updated 2026-05-09 21:07 UTC by scripts/render_library_map.py. Photo uploads and SQLite data stay out of Git.</text>
+  <text x="48" y="644" class="small" font-size="14">Updated 2026-05-17 03:16 UTC by scripts/render_library_map.py. Photo uploads and SQLite data stay out of Git.</text>
 </svg>
