@@ -31,6 +31,12 @@
         </aside>
       </header>
 
+      <nav class="site-tabs" aria-label="Little Library Atlas sections">
+        <a href="#searchTitle">Search the atlas</a>
+        <a href="#mapTitle">Map</a>
+        <a href="#contribute">How to contribute</a>
+      </nav>
+
       <section class="workspace">
         <section class="panel search-panel" aria-labelledby="searchTitle">
           <p class="eyebrow">Book search</p>
@@ -89,6 +95,39 @@
           <section id="databaseSummary" class="database-summary-card" aria-label="Top books and genres across the database"></section>
         </section>
       </section>
+
+      <section id="contribute" class="panel contribute-panel" aria-labelledby="contributeTitle">
+        <div>
+          <p class="eyebrow">How to contribute</p>
+          <h2 id="contributeTitle">Found a mini library? Send two GPS-tagged photos.</h2>
+          <p class="lede">
+            Help grow the atlas by emailing photos of mini libraries you encounter to
+            <a href="mailto:civitaslibrary@gmail.com?subject=Little%20Library%20Atlas%20photo%20contribution">civitaslibrary@gmail.com</a>.
+          </p>
+        </div>
+        <div class="contribute-steps" aria-label="Contribution photo checklist">
+          <article>
+            <span>1</span>
+            <h3>Contents photo</h3>
+            <p>Take a close-up photo of the bookshelf so the book titles on the spines or covers are readable.</p>
+          </article>
+          <article>
+            <span>2</span>
+            <h3>Surroundings photo</h3>
+            <p>Take a wider photo of the mini bookcase in its environment so neighbors can recognize and locate it.</p>
+          </article>
+          <article>
+            <span>3</span>
+            <h3>GPS required</h3>
+            <p>Make sure your photos include GPS/location metadata. Without GPS, the shelf cannot be placed accurately on the map.</p>
+          </article>
+        </div>
+        <div class="contribute-callout">
+          <strong>Email checklist:</strong>
+          <span>Attach both photos, keep location/GPS enabled, and include any visible Little Free Library charter number if you notice one.</span>
+          <a class="mail-button" href="mailto:civitaslibrary@gmail.com?subject=Little%20Library%20Atlas%20photo%20contribution&body=Hi%20Little%20Library%20Atlas%2C%0A%0AI%20found%20a%20mini%20library%20and%20attached%20two%20GPS-tagged%20photos%3A%0A1.%20Contents%20photo%20with%20readable%20book%20titles%0A2.%20Surroundings%20photo%20showing%20the%20library%20in%20context%0A%0AOptional%20notes%20or%20charter%20number%3A%0A">Send photos by email</a>
+        </div>
+      </section>
     </main>
 
     <script
@@ -96,6 +135,6 @@
       integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
       crossorigin=""
     ></script>
-    <script src="./app.js?v=global-genre-summary" defer></script>
+    <script src="./app.js?v=contribute-tab" defer></script>
   </body>
 </html>

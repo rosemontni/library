@@ -23,8 +23,8 @@ def load_metadata(path: Path) -> dict[str, Any]:
     with path.open("r", encoding="utf-8") as handle:
         metadata = json.load(handle)
 
-    if not isinstance(metadata.get("books"), list) or not metadata["books"]:
-        raise ValueError(f"{path} must contain a non-empty books array")
+    if not isinstance(metadata.get("books"), list):
+        raise ValueError(f"{path} must contain a books array")
 
     return metadata
 
@@ -134,7 +134,11 @@ def ingest(args: argparse.Namespace) -> dict[str, Any]:
         latitude = payload["geolocation"]["latitude"]
         longitude = payload["geolocation"]["longitude"]
 
-    query = args.verify_query or metadata.get("verify_query") or metadata["books"][0]["title"]
+    query = args.verify_query or metadata.get("verify_query")
+    if not query and metadata["books"]:
+        query = metadata["books"][0]["title"]
+    if not query:
+        query = metadata.get("library_name") or image_path.stem
     verification = verify_search(query, latitude, longitude, args.radius_miles)
 
     return {

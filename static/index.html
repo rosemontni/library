@@ -109,23 +109,30 @@
         <section id="contribute" class="panel capture-panel">
           <div class="panel-heading">
             <p class="panel-kicker">Contribute</p>
-            <h2>Add a shelf with two photo roles</h2>
+            <h2>Add a shelf with flexible photo roles</h2>
           </div>
 
           <form id="captureForm" class="stack">
             <div class="photo-role-grid">
               <label class="file-drop role-books" for="booksPhotoInput">
-                <input id="booksPhotoInput" name="books_photo" type="file" accept="image/*" capture="environment" />
+                <input id="booksPhotoInput" name="books_photo" type="file" accept="image/*" capture="environment" multiple />
                 <span class="role-pill">Books photo</span>
                 <span class="file-title">Close-up of readable spines</span>
-                <span class="file-hint">Used for OCR/vision extraction. This is the required photo.</span>
+                <span class="file-hint">Used for OCR/vision extraction. Optional if the library is empty today.</span>
               </label>
 
               <label class="file-drop role-location" for="locationPhotoInput">
-                <input id="locationPhotoInput" name="location_photo" type="file" accept="image/*" capture="environment" />
+                <input id="locationPhotoInput" name="location_photo" type="file" accept="image/*" capture="environment" multiple />
                 <span class="role-pill">Locator photo</span>
                 <span class="file-title">Wide shot of the mini bookcase</span>
                 <span class="file-hint">Used as the search-result icon so people can find it outside.</span>
+              </label>
+
+              <label class="file-drop role-extra" for="additionalPhotoInput">
+                <input id="additionalPhotoInput" name="additional_photos" type="file" accept="image/*" capture="environment" multiple />
+                <span class="role-pill">More angles</span>
+                <span class="file-title">Extra shelves, signs, or charter label</span>
+                <span class="file-hint">Attach several supporting photos when one shot is not enough.</span>
               </label>
             </div>
 
@@ -134,7 +141,7 @@
               <span class="microcopy" id="captureLocationStatus">No browser location attached yet.</span>
             </div>
 
-            <button type="submit" class="primary-button">Analyze Books Photo</button>
+            <button type="submit" class="primary-button">Analyze Library Photos</button>
           </form>
 
           <div class="preview-grid">
@@ -150,6 +157,13 @@
               <img id="locationPhotoPreview" alt="Selected location photo preview" hidden />
               <div id="locationPreviewPlaceholder" class="preview-placeholder">
                 <p>Optional locator photo appears here.</p>
+              </div>
+            </div>
+            <div class="preview-frame">
+              <div class="preview-label">Extra context</div>
+              <img id="additionalPhotoPreview" alt="Selected additional photo preview" hidden />
+              <div id="additionalPreviewPlaceholder" class="preview-placeholder">
+                <p>Extra shelf, sign, or charter-label preview appears here.</p>
               </div>
             </div>
           </div>
@@ -188,6 +202,14 @@
               <label>
                 <span>Accuracy meters</span>
                 <input id="accuracyMeters" type="number" min="0" step="0.1" />
+              </label>
+              <label>
+                <span>Little Free Library charter #</span>
+                <input id="charterNumber" type="text" placeholder="e.g. 123456" />
+              </label>
+              <label>
+                <span>Charter lookup status</span>
+                <input id="charterLookupStatus" type="text" readonly />
               </label>
             </div>
 

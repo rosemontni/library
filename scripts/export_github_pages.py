@@ -13,6 +13,20 @@ DEFAULT_DB_PATH = ROOT_DIR / "data" / "little_library_atlas.db"
 DEFAULT_OUTPUT_PATH = ROOT_DIR / "docs" / "atlas-data.json"
 
 
+def ensure_column(connection: sqlite3.Connection, table: str, column: str, definition: str) -> None:
+    columns = {row["name"] for row in connection.execute(f"PRAGMA table_info({table})").fetchall()}
+    if column not in columns:
+        connection.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
+
+
+def ensure_export_schema(connection: sqlite3.Connection) -> None:
+    ensure_column(connection, "books", "status", "TEXT NOT NULL DEFAULT 'active'")
+    ensure_column(connection, "libraries", "charter_number", "TEXT")
+    ensure_column(connection, "libraries", "charter_lookup_status", "TEXT")
+    ensure_column(connection, "libraries", "charter_record_checked_at", "TEXT")
+    ensure_column(connection, "libraries", "charter_record_distance_miles", "REAL")
+
+
 def parse_place_clues(raw_value: str | None) -> list[str]:
     if not raw_value:
         return []
@@ -35,11 +49,17 @@ def load_libraries(connection: sqlite3.Connection) -> list[dict[str, Any]]:
             l.location_source,
             l.location_confidence,
             l.place_clues,
+            l.charter_number,
+            l.charter_lookup_status,
+            l.charter_record_checked_at,
+            l.charter_record_distance_miles,
             l.created_at,
             COUNT(b.id) AS book_count,
             GROUP_CONCAT(b.title, '||') AS sample_books
         FROM libraries l
-        LEFT JOIN books b ON b.library_id = l.id
+        LEFT JOIN books b
+            ON b.library_id = l.id
+           AND COALESCE(b.status, 'active') = 'active'
         GROUP BY l.id
         ORDER BY l.id ASC
         """
@@ -58,6 +78,10 @@ def load_libraries(connection: sqlite3.Connection) -> list[dict[str, Any]]:
                 "location_source": row["location_source"] or "",
                 "location_confidence": row["location_confidence"],
                 "place_clues": parse_place_clues(row["place_clues"]),
+                "charter_number": row["charter_number"] or "",
+                "charter_lookup_status": row["charter_lookup_status"] or "",
+                "charter_record_checked_at": row["charter_record_checked_at"] or "",
+                "charter_record_distance_miles": row["charter_record_distance_miles"],
                 "book_count": int(row["book_count"] or 0),
                 "sample_books": sample_books,
                 "created_at": row["created_at"] or "",
@@ -85,6 +109,7 @@ def load_books(connection: sqlite3.Connection) -> list[dict[str, Any]]:
             notes,
             created_at
         FROM books
+        WHERE COALESCE(status, 'active') = 'active'
         ORDER BY library_id ASC, title COLLATE NOCASE ASC
         """
     ).fetchall()
@@ -118,6 +143,7 @@ def export_pages_data(db_path: Path = DEFAULT_DB_PATH, output_path: Path = DEFAU
 
     with sqlite3.connect(db_path) as connection:
         connection.row_factory = sqlite3.Row
+        ensure_export_schema(connection)
         libraries = load_libraries(connection)
         books = load_books(connection)
 

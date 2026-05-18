@@ -15,6 +15,12 @@ DEFAULT_DB_PATH = ROOT_DIR / "data" / "little_library_atlas.db"
 DEFAULT_OUTPUT_PATH = ROOT_DIR / "assets" / "library-map.svg"
 
 
+def ensure_column(connection: sqlite3.Connection, table: str, column: str, definition: str) -> None:
+    columns = {row["name"] for row in connection.execute(f"PRAGMA table_info({table})").fetchall()}
+    if column not in columns:
+        connection.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
+
+
 @dataclass(frozen=True)
 class LibraryPoint:
     id: int
@@ -35,6 +41,7 @@ def load_library_points(db_path: Path) -> list[LibraryPoint]:
 
     with sqlite3.connect(db_path) as connection:
         connection.row_factory = sqlite3.Row
+        ensure_column(connection, "books", "status", "TEXT NOT NULL DEFAULT 'active'")
         rows = connection.execute(
             """
             SELECT
@@ -45,7 +52,9 @@ def load_library_points(db_path: Path) -> list[LibraryPoint]:
                 l.longitude,
                 COUNT(b.id) AS book_count
             FROM libraries l
-            LEFT JOIN books b ON b.library_id = l.id
+            LEFT JOIN books b
+                ON b.library_id = l.id
+               AND COALESCE(b.status, 'active') = 'active'
             WHERE l.latitude IS NOT NULL
               AND l.longitude IS NOT NULL
             GROUP BY l.id

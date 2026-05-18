@@ -20,10 +20,13 @@ const elements = {
   captureForm: document.getElementById("captureForm"),
   booksPhotoInput: document.getElementById("booksPhotoInput"),
   locationPhotoInput: document.getElementById("locationPhotoInput"),
+  additionalPhotoInput: document.getElementById("additionalPhotoInput"),
   booksPhotoPreview: document.getElementById("booksPhotoPreview"),
   booksPreviewPlaceholder: document.getElementById("booksPreviewPlaceholder"),
   locationPhotoPreview: document.getElementById("locationPhotoPreview"),
   locationPreviewPlaceholder: document.getElementById("locationPreviewPlaceholder"),
+  additionalPhotoPreview: document.getElementById("additionalPhotoPreview"),
+  additionalPreviewPlaceholder: document.getElementById("additionalPreviewPlaceholder"),
   useCaptureLocation: document.getElementById("useCaptureLocation"),
   captureLocationStatus: document.getElementById("captureLocationStatus"),
   analysisStatus: document.getElementById("analysisStatus"),
@@ -34,6 +37,8 @@ const elements = {
   longitude: document.getElementById("longitude"),
   locationConfidence: document.getElementById("locationConfidence"),
   accuracyMeters: document.getElementById("accuracyMeters"),
+  charterNumber: document.getElementById("charterNumber"),
+  charterLookupStatus: document.getElementById("charterLookupStatus"),
   libraryDescription: document.getElementById("libraryDescription"),
   photoSummary: document.getElementById("photoSummary"),
   placeClues: document.getElementById("placeClues"),
@@ -298,6 +303,15 @@ function previewSelectedPhoto(file, imageElement, placeholderElement) {
   placeholderElement.hidden = true;
 }
 
+function previewSelectedFiles(files, imageElement, placeholderElement) {
+  const selected = Array.from(files || []);
+  previewSelectedPhoto(selected[0], imageElement, placeholderElement);
+  if (selected.length > 1) {
+    placeholderElement.hidden = false;
+    placeholderElement.innerHTML = `<p>${selected.length} photos selected. Showing the first preview.</p>`;
+  }
+}
+
 async function requestLocation(statusElement) {
   if (!navigator.geolocation) {
     throw new Error("This browser does not support geolocation.");
@@ -371,6 +385,8 @@ function renderDraft(draft) {
   elements.longitude.value = draft.geolocation?.longitude ?? "";
   elements.locationConfidence.value = draft.geolocation?.confidence ?? "";
   elements.accuracyMeters.value = draft.geolocation?.accuracy_meters ?? "";
+  elements.charterNumber.value = draft.charter_number || "";
+  elements.charterLookupStatus.value = draft.charter_registration?.status || "";
   elements.libraryDescription.value = draft.library_description || "";
   elements.photoSummary.value = draft.photo_summary || "";
   elements.placeClues.value = (draft.place_clues || []).join(", ");
@@ -403,7 +419,13 @@ function collectDraftPayload() {
     library_description: elements.libraryDescription.value.trim(),
     photo_path: state.currentDraft?.photo_url?.replace(/^\//, "") || "",
     books_photo_path: state.currentDraft?.books_photo_url?.replace(/^\//, "") || "",
+    books_photo_paths: (state.currentDraft?.books_photo_paths || []).map((path) => path.replace(/^\//, "")),
     location_photo_path: state.currentDraft?.location_photo_url?.replace(/^\//, "") || "",
+    location_photo_paths: (state.currentDraft?.location_photo_paths || []).map((path) => path.replace(/^\//, "")),
+    additional_photo_paths: (state.currentDraft?.additional_photo_paths || []).map((path) => path.replace(/^\//, "")),
+    photo_paths: (state.currentDraft?.photo_paths || []).map((path) => path.replace(/^\//, "")),
+    charter_number: elements.charterNumber.value.trim(),
+    charter_registration: state.currentDraft?.charter_registration || {},
     place_clues: elements.placeClues.value
       .split(",")
       .map((item) => item.trim())
@@ -553,13 +575,15 @@ elements.topicChips.forEach((chip) => {
 });
 
 elements.booksPhotoInput.addEventListener("change", (event) => {
-  const file = event.target.files?.[0];
-  previewSelectedPhoto(file, elements.booksPhotoPreview, elements.booksPreviewPlaceholder);
+  previewSelectedFiles(event.target.files, elements.booksPhotoPreview, elements.booksPreviewPlaceholder);
 });
 
 elements.locationPhotoInput.addEventListener("change", (event) => {
-  const file = event.target.files?.[0];
-  previewSelectedPhoto(file, elements.locationPhotoPreview, elements.locationPreviewPlaceholder);
+  previewSelectedFiles(event.target.files, elements.locationPhotoPreview, elements.locationPreviewPlaceholder);
+});
+
+elements.additionalPhotoInput.addEventListener("change", (event) => {
+  previewSelectedFiles(event.target.files, elements.additionalPhotoPreview, elements.additionalPreviewPlaceholder);
 });
 
 elements.useCaptureLocation.addEventListener("click", async () => {
@@ -589,20 +613,20 @@ elements.useSearchLocation.addEventListener("click", async () => {
 elements.captureForm.addEventListener("submit", async (event) => {
   event.preventDefault();
 
-  const booksFile = elements.booksPhotoInput.files?.[0];
-  const locationFile = elements.locationPhotoInput.files?.[0];
-  if (!booksFile) {
-    setCallout("Pick a close-up books photo first. The locator photo is optional.", "error");
+  const booksFiles = Array.from(elements.booksPhotoInput.files || []);
+  const locationFiles = Array.from(elements.locationPhotoInput.files || []);
+  const additionalFiles = Array.from(elements.additionalPhotoInput.files || []);
+  if (!booksFiles.length && !locationFiles.length && !additionalFiles.length) {
+    setCallout("Pick at least one photo. Books can be empty, but the library still needs a photo record.", "error");
     return;
   }
 
-  setCallout("Analyzing the books photo and preparing the locator image...", "muted");
+  setCallout("Analyzing the uploaded library photos and preparing a draft...", "muted");
 
   const formData = new FormData();
-  formData.append("books_photo", booksFile);
-  if (locationFile) {
-    formData.append("location_photo", locationFile);
-  }
+  booksFiles.forEach((file) => formData.append("books_photo", file));
+  locationFiles.forEach((file) => formData.append("location_photo", file));
+  additionalFiles.forEach((file) => formData.append("additional_photos", file));
   if (state.captureLocation) {
     formData.append("browser_latitude", state.captureLocation.latitude);
     formData.append("browser_longitude", state.captureLocation.longitude);
@@ -627,8 +651,7 @@ elements.libraryDraftForm.addEventListener("submit", async (event) => {
 
   const payload = collectDraftPayload();
   if (!payload.books.length) {
-    setCallout("Add at least one book before saving.", "error");
-    return;
+    setCallout("Saving this library with zero active books. That is okay for an empty shelf snapshot.", "muted");
   }
 
   try {
