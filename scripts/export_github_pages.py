@@ -71,6 +71,7 @@ def load_libraries(connection: sqlite3.Connection) -> list[dict[str, Any]]:
         libraries.append(
             {
                 "id": int(row["id"]),
+                "csn": f"CSN-{int(row['id'])}",
                 "name": row["name"] or f"Library {row['id']}",
                 "description": row["description"] or "",
                 "latitude": row["latitude"],

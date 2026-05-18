@@ -81,6 +81,10 @@ function formatCount(count, singular, plural = `${singular}s`) {
   return `${value} ${value === 1 ? singular : plural}`;
 }
 
+function libraryCsn(library) {
+  return library?.csn || (library?.id ? `CSN-${library.id}` : "CSN pending");
+}
+
 function formatGeneratedAt(value) {
   if (!value) {
     return "Snapshot date unavailable";
@@ -357,10 +361,11 @@ function markerIcon(bookCount = 0) {
 }
 
 function popupHtml(library) {
+  const csn = libraryCsn(library);
   return `
     <article class="popup">
-      <strong>${escapeHtml(library.name)}</strong>
-      <p>${escapeHtml(library.description || "No description saved.")}</p>
+      <strong>${escapeHtml(csn)} · ${escapeHtml(library.name)}</strong>
+      <p><b>${escapeHtml(csn)}:</b> ${escapeHtml(library.description || "No description saved.")}</p>
       <small>${Number(library.book_count || 0)} books at ${formatCoordinate(library.latitude)}, ${formatCoordinate(library.longitude)}</small>
     </article>
   `;
@@ -458,7 +463,7 @@ function renderResults(results, query) {
         <p>${escapeHtml([book.author, book.genre, book.publisher, book.published_year].filter(Boolean).join(" · ") || "Metadata incomplete")}</p>
       </div>
       <div class="card-meta">
-        <span>${escapeHtml(library?.name || "Unknown library")}</span>
+        <span>${escapeHtml(library ? `${libraryCsn(library)} · ${library.name}` : "Unknown library")}</span>
         <span>${escapeHtml(book.format || "format unknown")}</span>
         ${distance}
       </div>

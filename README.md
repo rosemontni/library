@@ -1,14 +1,14 @@
-![Little Library Atlas banner](assets/github-banner.png)
+![Civitas Library banner](assets/github-banner.png)
 
-# Little Library Atlas
+# Civitas Library
 
-Little Library Atlas is a lightweight prototype for cataloging sidewalk mini-libraries from a photo and making nearby-book lookup possible from one shared central database.
+Civitas Library is a lightweight prototype for cataloging sidewalk mini-libraries from a photo and making nearby-book lookup possible from one shared central database.
 
 The website is the source of truth. People can contribute by uploading a shelf photo on the website, or by using the Android app to capture/review a shelf and sync it to the same website database.
 
 ## Current library map
 
-![Map of indexed Little Library Atlas locations](assets/library-map.svg)
+![Map of indexed Civitas Library locations](assets/library-map.svg)
 
 The map is generated from the local SQLite database by [scripts/render_library_map.py](scripts/render_library_map.py). Every successful library save refreshes [assets/library-map.svg](assets/library-map.svg), so the README map stays in sync as new libraries are added.
 
@@ -103,7 +103,7 @@ cd android-app
 On Windows, the debug APK is written outside the OneDrive repo tree to avoid Gradle file-lock issues:
 
 ```text
-%LOCALAPPDATA%\LittleLibraryAtlasAndroidBuild\app\outputs\apk\debug\app-debug.apk
+%LOCALAPPDATA%\CivitasLibraryAndroidBuild\app\outputs\apk\debug\app-debug.apk
 ```
 
 GitHub Actions also builds the debug APK automatically through [.github/workflows/android-apk.yml](.github/workflows/android-apk.yml).
@@ -124,4 +124,4 @@ The GitHub banner image is [assets/github-banner.png](assets/github-banner.png).
 
 ## License
 
-Little Library Atlas is licensed under the [Apache License 2.0](LICENSE).
+Civitas Library is licensed under the [Apache License 2.0](LICENSE).

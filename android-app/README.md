@@ -1,6 +1,6 @@
-# Little Library Atlas Android
+# Civitas Library Android
 
-This Android app lets contributors pick or take a locator photo of the mini bookcase, read EXIF geolocation when present, review books manually, keep a phone copy, and sync the contribution to the central Little Library Atlas website.
+This Android app lets contributors pick or take a locator photo of the mini bookcase, read EXIF geolocation when present, review books manually, keep a phone copy, and sync the contribution to the central Civitas Library website.
 
 The central website is the source of truth. Enter its public URL in the Capture tab, then use `Save + sync to website` to upload the reviewed library, geolocation, book metadata, and optional locator photo to `POST /api/mobile/libraries`.
 
@@ -18,7 +18,7 @@ $env:ANDROID_SDK_ROOT="$env:LOCALAPPDATA\Android\Sdk"
 On Windows, the build output is redirected outside the OneDrive workspace to avoid Gradle file-lock issues:
 
 ```text
-%LOCALAPPDATA%\LittleLibraryAtlasAndroidBuild\app\outputs\apk\debug\app-debug.apk
+%LOCALAPPDATA%\CivitasLibraryAndroidBuild\app\outputs\apk\debug\app-debug.apk
 ```
 
 On Linux and in GitHub Actions, Gradle uses the standard project build directory.

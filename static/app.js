@@ -101,6 +101,10 @@ function formatNumber(value, digits = 4) {
   return Number(value).toFixed(digits);
 }
 
+function libraryCsn(library) {
+  return library?.csn || (library?.id ? `CSN-${library.id}` : "CSN pending");
+}
+
 function setCallout(message, mode = "muted") {
   elements.analysisStatus.className = `callout ${mode}`.trim();
   elements.analysisStatus.textContent = message;
@@ -188,14 +192,15 @@ function markerIcon(bookCount = 0) {
 
 function popupHtml(library) {
   const photo = libraryPhoto(library);
+  const csn = libraryCsn(library);
   const sampleBooks = (library.sample_books || [])
     .map((title) => `<li>${escapeHtml(title)}</li>`)
     .join("");
   return `
     <article class="map-popup">
       ${photo ? `<img src="${escapeHtml(photo)}" alt="${escapeHtml(library.name)} locator photo" />` : ""}
-      <strong>${escapeHtml(library.name)}</strong>
-      <p>${escapeHtml(library.description || "No description saved yet.")}</p>
+      <strong>${escapeHtml(csn)} · ${escapeHtml(library.name)}</strong>
+      <p><b>${escapeHtml(csn)}:</b> ${escapeHtml(library.description || "No description saved yet.")}</p>
       <small>${library.book_count || 0} books · ${escapeHtml(library.location_source || "manual")}</small>
       ${sampleBooks ? `<ul>${sampleBooks}</ul>` : ""}
     </article>
@@ -251,8 +256,8 @@ function renderLibraryList(libraries) {
     card.innerHTML = `
       ${photo ? `<img src="${escapeHtml(photo)}" alt="${escapeHtml(library.name)} locator photo" />` : `<div class="library-mini-empty">No photo</div>`}
       <div>
-        <h3>${escapeHtml(library.name)}</h3>
-        <p>${escapeHtml(library.description || "No description saved yet.")}</p>
+        <h3>${escapeHtml(libraryCsn(library))} · ${escapeHtml(library.name)}</h3>
+        <p><b>${escapeHtml(libraryCsn(library))}:</b> ${escapeHtml(library.description || "No description saved yet.")}</p>
         <div class="mini-meta">
           <span>${library.book_count || 0} books</span>
           <span>${escapeHtml(coords)}</span>
@@ -508,12 +513,13 @@ function renderSearchResults(results) {
       }
       <div class="result-head">
         <div>
-          <h3 class="result-title">${escapeHtml(group.library.name)}</h3>
-          <p>${escapeHtml(group.library.description || "No library description saved yet.")}</p>
+          <h3 class="result-title">${escapeHtml(libraryCsn(group.library))} · ${escapeHtml(group.library.name)}</h3>
+          <p><b>${escapeHtml(libraryCsn(group.library))}:</b> ${escapeHtml(group.library.description || "No library description saved yet.")}</p>
         </div>
         <span class="distance-pill">${escapeHtml(distanceLabel)}</span>
       </div>
       <div class="result-meta compact-meta">
+        <span>${escapeHtml(libraryCsn(group.library))}</span>
         <span>${group.books.length} matching book${group.books.length === 1 ? "" : "s"}</span>
         <span>${escapeHtml(libraryCoords)}</span>
         <span>${escapeHtml(group.library.location_source || "manual")}</span>

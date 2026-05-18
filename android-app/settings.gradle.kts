@@ -14,5 +14,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "LittleLibraryAtlasAndroid"
+rootProject.name = "CivitasLibraryAndroid"
 include(":app")

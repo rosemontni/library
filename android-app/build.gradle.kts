@@ -10,8 +10,8 @@ val isWindows = System.getProperty("os.name").lowercase(Locale.US).contains("win
 val localAppData = System.getenv("LOCALAPPDATA")
 
 if (isWindows && !localAppData.isNullOrBlank()) {
-    rootProject.layout.buildDirectory.set(file("$localAppData/LittleLibraryAtlasAndroidBuild/root"))
+    rootProject.layout.buildDirectory.set(file("$localAppData/CivitasLibraryAndroidBuild/root"))
     subprojects {
-        layout.buildDirectory.set(file("$localAppData/LittleLibraryAtlasAndroidBuild/${project.name}"))
+        layout.buildDirectory.set(file("$localAppData/CivitasLibraryAndroidBuild/${project.name}"))
     }
 }

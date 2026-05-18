@@ -160,7 +160,7 @@ private fun AtlasApp(viewModel: AtlasViewModel) {
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Text(
-                            text = "Little Library Atlas",
+                            text = "Civitas Library",
                             color = Color(0xFFF9F6F0),
                             style = MaterialTheme.typography.headlineMedium,
                             fontWeight = FontWeight.Bold

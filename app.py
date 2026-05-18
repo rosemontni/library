@@ -789,7 +789,7 @@ def haversine_miles(lat1: float, lon1: float, lat2: float, lon2: float) -> float
 
 
 def fetch_public_json(url: str, timeout: int = 8) -> dict[str, Any]:
-    request = urllib.request.Request(url, headers={"User-Agent": "LittleLibraryAtlas/0.1"})
+    request = urllib.request.Request(url, headers={"User-Agent": "CivitasLibrary/0.1"})
     with urllib.request.urlopen(request, timeout=timeout) as response:
         return json.loads(response.read().decode("utf-8"))
 
@@ -1555,6 +1555,7 @@ def search_books(
                 "notes": row["notes"],
                 "library": {
                     "id": row["library_id"],
+                    "csn": f"CSN-{row['library_id']}",
                     "name": row["library_name"],
                     "description": row["library_description"],
                     "latitude": row["latitude"],
@@ -1623,6 +1624,7 @@ def list_libraries() -> list[dict[str, Any]]:
         libraries.append(
             {
                 "id": row["id"],
+                "csn": f"CSN-{row['id']}",
                 "name": row["name"],
                 "description": row["description"],
                 "latitude": row["latitude"],
@@ -1646,7 +1648,7 @@ def list_libraries() -> list[dict[str, Any]]:
 
 
 class LibraryAtlasHandler(BaseHTTPRequestHandler):
-    server_version = "LittleLibraryAtlas/0.1"
+    server_version = "CivitasLibrary/0.1"
 
     def do_GET(self) -> None:  # noqa: N802
         parsed = urlparse(self.path)
@@ -1917,7 +1919,7 @@ class LibraryAtlasHandler(BaseHTTPRequestHandler):
 def run_server() -> None:
     initialize_database()
     server = ThreadingHTTPServer((HOST, PORT), LibraryAtlasHandler)
-    print(f"Little Library Atlas running at http://{HOST}:{PORT}")
+    print(f"Civitas Library running at http://{HOST}:{PORT}")
     try:
         server.serve_forever()
     except KeyboardInterrupt:

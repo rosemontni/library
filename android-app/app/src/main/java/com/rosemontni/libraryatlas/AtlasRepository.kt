@@ -147,7 +147,7 @@ class AtlasRepository(private val context: Context) {
             "Central website URL must start with http:// or https://."
         }
 
-        val boundary = "----LittleLibraryAtlas${System.currentTimeMillis()}"
+        val boundary = "----CivitasLibrary${System.currentTimeMillis()}"
         val connection = (URL("$endpointBase/api/mobile/libraries").openConnection() as HttpURLConnection).apply {
             requestMethod = "POST"
             connectTimeout = 15_000

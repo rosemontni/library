@@ -30,6 +30,10 @@ class LibraryPoint:
     longitude: float
     book_count: int
 
+    @property
+    def csn(self) -> str:
+        return f"CSN-{self.id}"
+
 
 def escape(value: Any) -> str:
     return html.escape(str(value or ""), quote=True)
@@ -95,11 +99,11 @@ def point_label(index: int) -> str:
 
 def render_empty_map(updated_at: str) -> str:
     return f"""<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="675" viewBox="0 0 1200 675" role="img" aria-labelledby="title desc">
-  <title id="title">Little Library Atlas map</title>
+  <title id="title">Civitas Library map</title>
   <desc id="desc">No geolocated libraries have been added yet.</desc>
   <rect width="1200" height="675" rx="32" fill="#f7f0df"/>
   <rect x="48" y="48" width="1104" height="579" rx="28" fill="#fffaf0" stroke="#2f3a2f" stroke-width="3"/>
-  <text x="86" y="122" fill="#1f2d24" font-family="Georgia, serif" font-size="48" font-weight="700">Little Library Atlas</text>
+  <text x="86" y="122" fill="#1f2d24" font-family="Georgia, serif" font-size="48" font-weight="700">Civitas Library</text>
   <text x="86" y="176" fill="#526057" font-family="Arial, sans-serif" font-size="22">Map snapshot generated from the local SQLite database</text>
   <circle cx="600" cy="344" r="78" fill="#d8ead7" stroke="#5c7b5f" stroke-width="5"/>
   <path d="M600 287c-27 0-49 22-49 49 0 39 49 89 49 89s49-50 49-89c0-27-22-49-49-49z" fill="#c9523d"/>
@@ -164,12 +168,15 @@ def render_library_map(db_path: Path = DEFAULT_DB_PATH, output_path: Path = DEFA
         screen_x, screen_y = to_screen(projected_x, projected_y)
         color = palette[index % len(palette)]
         label = point_label(index)
+        csn = escape(point.csn)
         title = escape(point.name)
         description = escape(point.description[:94] + ("..." if len(point.description) > 94 else ""))
+        described_as_raw = f"{point.csn}: {point.description}"
+        described_as = escape(described_as_raw[:106] + ("..." if len(described_as_raw) > 106 else ""))
 
         marker_rows.append(
             f"""    <g class="marker" transform="translate({screen_x:.2f} {screen_y:.2f})">
-      <title>{title}: {point.book_count} books</title>
+      <title>{csn} - {title}: {point.book_count} books. {description}</title>
       <path d="M0 -29c-18 0-32 14-32 32 0 25 32 58 32 58S32 28 32 3C32 -15 18 -29 0 -29z" fill="{color}" stroke="#213226" stroke-width="4"/>
       <circle cx="0" cy="2" r="18" fill="#fffaf0"/>
       <text x="0" y="9" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" font-weight="800" fill="#213226">{label}</text>
@@ -181,9 +188,9 @@ def render_library_map(db_path: Path = DEFAULT_DB_PATH, output_path: Path = DEFA
             f"""    <g transform="translate({side_x} {y})">
       <circle cx="0" cy="-8" r="18" fill="{color}" stroke="#213226" stroke-width="3"/>
       <text x="0" y="-1" text-anchor="middle" font-family="Arial, sans-serif" font-size="17" font-weight="800" fill="#fffaf0">{label}</text>
-      <text x="32" y="-16" font-family="Arial, sans-serif" font-size="19" font-weight="800" fill="#1f2d24">{title}</text>
+      <text x="32" y="-16" font-family="Arial, sans-serif" font-size="19" font-weight="800" fill="#1f2d24">{csn} - {title}</text>
       <text x="32" y="8" font-family="Arial, sans-serif" font-size="15" fill="#536158">{point.book_count} books at {point.latitude:.4f}, {point.longitude:.4f}</text>
-      <text x="32" y="30" font-family="Arial, sans-serif" font-size="13" fill="#7a8079">{description}</text>
+      <text x="32" y="30" font-family="Arial, sans-serif" font-size="13" fill="#7a8079">{described_as}</text>
     </g>"""
         )
 
@@ -219,8 +226,8 @@ def render_library_map(db_path: Path = DEFAULT_DB_PATH, output_path: Path = DEFA
     total_books = sum(point.book_count for point in points)
 
     svg = f"""<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}" role="img" aria-labelledby="title desc">
-  <title id="title">Little Library Atlas map</title>
-  <desc id="desc">Map of {len(points)} geolocated mini libraries with numbered markers and book counts.</desc>
+  <title id="title">Civitas Library map</title>
+  <desc id="desc">Map of {len(points)} geolocated mini libraries with numbered markers, Civitas Library Serial Numbers, descriptions, and book counts.</desc>
   <defs>
     <linearGradient id="paper" x1="0" x2="1" y1="0" y2="1">
       <stop offset="0" stop-color="#fff7e8"/>
@@ -240,8 +247,8 @@ def render_library_map(db_path: Path = DEFAULT_DB_PATH, output_path: Path = DEFA
   </defs>
   <rect width="{width}" height="{height}" rx="34" fill="#263529"/>
   <rect x="18" y="18" width="{width - 36}" height="{height - 36}" rx="30" fill="url(#paper)"/>
-  <text x="48" y="68" fill="#1f2d24" font-family="Georgia, serif" font-size="39" font-weight="700">Little Library Atlas</text>
-  <text x="50" y="99" class="small" font-size="18">Generated map snapshot: {len(points)} libraries, {total_books} books, centered near {center_lat:.4f}, {center_lon:.4f}</text>
+  <text x="48" y="68" fill="#1f2d24" font-family="Georgia, serif" font-size="39" font-weight="700">Civitas Library</text>
+  <text x="50" y="99" class="small" font-size="18">Generated map snapshot: {len(points)} libraries, {total_books} books, CSN = database serial ID, centered near {center_lat:.4f}, {center_lon:.4f}</text>
 
   <g>
     <rect x="{map_x}" y="{map_y}" width="{map_w}" height="{map_h}" rx="28" fill="url(#park)" stroke="#253529" stroke-width="4"/>
@@ -272,7 +279,7 @@ def render_library_map(db_path: Path = DEFAULT_DB_PATH, output_path: Path = DEFA
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Render a README SVG map from the Little Library Atlas SQLite database.")
+    parser = argparse.ArgumentParser(description="Render a README SVG map from the Civitas Library SQLite database.")
     parser.add_argument("--db", type=Path, default=DEFAULT_DB_PATH, help="Path to the SQLite database.")
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT_PATH, help="Destination SVG path.")
     return parser.parse_args()
