@@ -412,8 +412,8 @@ LIBRARIES: list[dict[str, Any]] = [
             "The current upload shows zero books inside."
         ),
         "geolocation": {
-            "latitude": 39.410158333333335,
-            "longitude": -77.41502222222223,
+            "latitude": 38.93531944444444,
+            "longitude": -77.28199722222222,
             "source": "photo_exif",
             "confidence": 0.99,
         },
