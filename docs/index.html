@@ -10,37 +10,59 @@
       integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
       crossorigin=""
     />
-    <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="./styles.css?v=release-20260519" />
     <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
   </head>
   <body>
     <main class="page-shell">
       <header class="hero">
-        <div>
-          <p class="eyebrow">Community book-finding network</p>
-          <h1>Find a nearby shelf copy.</h1>
+        <div class="hero-copy">
+          <a class="brand-mark" href="#mapTitle" aria-label="Civitas Library home">
+            <span>CL</span>
+            <strong>Civitas Library</strong>
+          </a>
+          <h1>Find the book hiding down the block.</h1>
           <p class="lede">
-            Search the public snapshot of Civitas Library. The map and results are generated from the shared database, with
-            photos intentionally left out of the GitHub Pages export.
+            A community-built map of mini libraries, photographed by neighbors and searchable by title,
+            genre, or ZIP code. The public snapshot keeps original photos private while small derived icons make nearby
+            books easier to discover.
           </p>
+          <div class="hero-actions" aria-label="Primary actions">
+            <a class="primary-link" href="#searchTitle">Search nearby books</a>
+            <a class="secondary-link" href="#contribute">Contribute photos</a>
+          </div>
         </div>
-        <aside class="stats-card" aria-label="Atlas snapshot">
-          <span><strong id="libraryCount">0</strong> libraries</span>
-          <span><strong id="bookCount">0</strong> books</span>
-          <small id="generatedAt">Loading snapshot...</small>
+        <aside class="hero-visual" aria-label="Civitas Library snapshot">
+          <div class="shelf-card">
+            <span class="shelf-roof"></span>
+            <div class="shelf-window">
+              <i style="--h: 72%; --c: #b84d32"></i>
+              <i style="--h: 56%; --c: #315f4c"></i>
+              <i style="--h: 84%; --c: #263b5e"></i>
+              <i style="--h: 64%; --c: #d49b3d"></i>
+              <i style="--h: 76%; --c: #7a4f7f"></i>
+              <i style="--h: 48%; --c: #4f7d86"></i>
+            </div>
+          </div>
+          <div class="stats-card">
+            <span><strong id="libraryCount">0</strong> libraries mapped</span>
+            <span><strong id="bookCount">0</strong> active books</span>
+            <small id="generatedAt">Loading snapshot...</small>
+          </div>
         </aside>
       </header>
 
       <nav class="site-tabs" aria-label="Civitas Library sections">
-        <a href="#searchTitle">Search the atlas</a>
-        <a href="#mapTitle">Map</a>
+        <a href="#searchTitle">Search</a>
+        <a href="#mapTitle">Live map</a>
         <a href="#contribute">How to contribute</a>
+        <a href="#builderNotes">A few Words from the Site Builder:</a>
       </nav>
 
       <section class="workspace">
         <section class="panel search-panel" aria-labelledby="searchTitle">
-          <p class="eyebrow">Book search</p>
           <h2 id="searchTitle">Look for a book</h2>
+          <p class="section-intro">Search the whole database, then use ZIP code or browser location to sort by distance.</p>
           <form id="searchForm" class="search-form">
             <label for="searchQuery">Title, author, topic, ISBN, or publisher</label>
             <input id="searchQuery" type="search" placeholder="Try Tangerine, Praxis, gardening, Ian Rankin..." autocomplete="off" />
@@ -83,8 +105,8 @@
         <section class="panel map-panel" aria-labelledby="mapTitle">
           <div class="map-heading">
             <div>
-              <p class="eyebrow">Live static snapshot</p>
               <h2 id="mapTitle">Zoomable library map</h2>
+              <p class="section-intro">Markers show current mapped shelves. Official addresses appear when a matching registry record is available.</p>
             </div>
             <button type="button" id="fitMarkers" class="secondary compact">Fit markers</button>
           </div>
@@ -98,11 +120,11 @@
 
       <section id="contribute" class="panel contribute-panel" aria-labelledby="contributeTitle">
         <div>
-          <p class="eyebrow">How to contribute</p>
-          <h2 id="contributeTitle">Found a mini library? Send two GPS-tagged photos.</h2>
+          <h2 id="contributeTitle">Found a mini library? Send or share two GPS-tagged photos.</h2>
           <p class="lede">
             Help grow the atlas by emailing photos of mini libraries you encounter to
             <a href="mailto:civitaslibrary@gmail.com?subject=Civitas%20Library%20photo%20contribution">civitaslibrary@gmail.com</a>.
+            You can also share the photos with that same address from Google Photos.
           </p>
         </div>
         <div class="contribute-steps" aria-label="Contribution photo checklist">
@@ -119,14 +141,42 @@
           <article>
             <span>3</span>
             <h3>GPS required</h3>
-            <p>Make sure your photos include GPS/location metadata. Without GPS, the shelf cannot be placed accurately on the map.</p>
+            <p>Make sure your photos include GPS/location metadata. Uploads without photo GPS are rejected so every shelf can be placed accurately.</p>
           </article>
         </div>
         <div class="contribute-callout">
-          <strong>Email checklist:</strong>
+          <strong>Send by email:</strong>
           <span>Attach both photos, keep location/GPS enabled, and include any visible Little Free Library charter number if you notice one.</span>
           <a class="mail-button" href="mailto:civitaslibrary@gmail.com?subject=Civitas%20Library%20photo%20contribution&body=Hi%20Civitas%20Library%2C%0A%0AI%20found%20a%20mini%20library%20and%20attached%20two%20GPS-tagged%20photos%3A%0A1.%20Contents%20photo%20with%20readable%20book%20titles%0A2.%20Surroundings%20photo%20showing%20the%20library%20in%20context%0A%0AOptional%20notes%20or%20charter%20number%3A%0A">Send photos by email</a>
         </div>
+        <div class="contribute-callout">
+          <strong>Share from Google Photos:</strong>
+          <span>Select both photos in Google Photos, tap Share, and share them with <a href="mailto:civitaslibrary@gmail.com">civitaslibrary@gmail.com</a>. Please leave location sharing/GPS metadata enabled.</span>
+          <a class="mail-button" href="https://photos.google.com/" rel="noopener noreferrer">Open Google Photos</a>
+        </div>
+      </section>
+
+      <section id="builderNotes" class="panel builder-notes-panel" aria-labelledby="builderNotesTitle">
+        <div class="builder-notes-header">
+          <p class="eyebrow">Dated notes</p>
+          <h2 id="builderNotesTitle">A few Words from the Site Builder:</h2>
+          <p class="section-intro">
+            Short project notes, release reflections, and invitations for neighbors who want to help make the atlas better.
+          </p>
+        </div>
+        <article class="builder-entry">
+          <time datetime="2026-05-19">May 19, 2026</time>
+          <div>
+            <h3>Welcome to Civitas Library</h3>
+            <p>
+              This atlas is a small civic experiment: neighbors photograph mini libraries, the project turns those photos
+              into searchable book and shelf records, and readers get a better chance of finding something nearby that
+              sparks curiosity. If you find a library we missed, notice a book record that should be improved, or have an
+              idea for the site, please contribute or send feedback to
+              <a href="mailto:civitaslibrary@gmail.com">civitaslibrary@gmail.com</a>.
+            </p>
+          </div>
+        </article>
       </section>
     </main>
 
@@ -135,6 +185,6 @@
       integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
       crossorigin=""
     ></script>
-    <script src="./app.js?v=civitas-csn" defer></script>
+    <script src="./app.js?v=release-20260519" defer></script>
   </body>
 </html>

@@ -1,8 +1,10 @@
 # Civitas Library Android
 
-This Android app lets contributors pick or take a locator photo of the mini bookcase, read EXIF geolocation when present, review books manually, keep a phone copy, and sync the contribution to the central Civitas Library website.
+This Android app lets contributors pick or take GPS-tagged photos of the mini bookcase, read EXIF geolocation, review books manually, keep a phone copy, and sync the contribution to the central Civitas Library website.
 
 The central website is the source of truth. Enter its public URL in the Capture tab, then use `Save + sync to website` to upload the reviewed library, geolocation, book metadata, and optional locator photo to `POST /api/mobile/libraries`.
+
+For contributors who are not using the app, Civitas Library also accepts two GPS-tagged photos by email or Google Photos sharing at `civitaslibrary@gmail.com`: one close-up contents photo with readable book titles, and one wider surroundings photo that helps locate the shelf. The central site rejects photo uploads that do not include EXIF GPS.
 
 ## Build
 

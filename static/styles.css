@@ -337,17 +337,74 @@ textarea {
   transform: rotate(45deg);
 }
 
-.map-popup {
-  display: grid;
-  gap: 8px;
-  width: 230px;
+.library-popup.leaflet-popup {
+  margin-bottom: 28px;
 }
 
-.map-popup img {
-  width: 100%;
-  height: 120px;
-  border-radius: 14px;
+.library-popup .leaflet-popup-content-wrapper {
+  overflow: hidden;
+  border-radius: 22px;
+  background: #fffaf2;
+  box-shadow: 0 22px 48px rgba(30, 43, 35, 0.22);
+  padding: 0;
+}
+
+.library-popup .leaflet-popup-content {
+  width: 280px !important;
+  margin: 0;
+}
+
+.library-popup .leaflet-popup-tip {
+  background: #fffaf2;
+}
+
+.library-popup .leaflet-popup-close-button {
+  top: 6px;
+  right: 8px;
+  color: var(--ink) !important;
+  font-size: 22px;
+  text-decoration: none;
+}
+
+.map-popup {
+  width: 280px;
+  max-width: 280px;
+  overflow: hidden;
+  color: var(--ink);
+}
+
+.popup-head {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+  padding: 14px;
+}
+
+.popup-head > div {
+  min-width: 0;
+}
+
+.popup-icon {
+  display: block;
+  width: 72px;
+  height: 72px;
+  border-radius: 18px;
   object-fit: cover;
+  border: 1px solid rgba(72, 56, 43, 0.16);
+  box-shadow: 0 12px 24px rgba(39, 29, 21, 0.18);
+}
+
+.map-popup strong {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 1rem;
+}
+
+.map-popup p,
+.map-popup small,
+.map-popup li {
+  overflow-wrap: anywhere;
 }
 
 .map-popup p,
@@ -356,8 +413,14 @@ textarea {
 }
 
 .map-popup ul {
-  padding-left: 18px;
+  margin: 0 0 14px;
+  padding-left: 30px;
   color: var(--ink-soft);
+}
+
+.map-popup small {
+  color: var(--ink-soft);
+  line-height: 1.35;
 }
 
 .workspace {

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import html
+import json
 import math
 import sqlite3
 from dataclasses import dataclass
@@ -29,14 +30,50 @@ class LibraryPoint:
     latitude: float
     longitude: float
     book_count: int
+    official_address: str
 
     @property
     def csn(self) -> str:
         return f"CSN-{self.id}"
 
+    @property
+    def location_label(self) -> str:
+        return self.official_address or f"{self.latitude:.4f}, {self.longitude:.4f}"
+
 
 def escape(value: Any) -> str:
     return html.escape(str(value or ""), quote=True)
+
+
+def parse_json_object(raw_value: str | None) -> dict[str, Any]:
+    if not raw_value:
+        return {}
+    try:
+        parsed = json.loads(raw_value)
+    except json.JSONDecodeError:
+        return {}
+    return parsed if isinstance(parsed, dict) else {}
+
+
+def format_official_address(raw_value: str | None) -> str:
+    record = parse_json_object(raw_value)
+    if record.get("status") != "matched":
+        return ""
+
+    street = str(record.get("street") or "").strip()
+    city = str(record.get("city") or "").strip()
+    state = str(record.get("state") or "").strip()
+    postal_code = str(record.get("postal_code") or "").strip()
+    country = str(record.get("country") or "").strip()
+
+    city_line = ", ".join(part for part in [city, state] if part)
+    if postal_code:
+        city_line = f"{city_line} {postal_code}".strip()
+
+    parts = [part for part in [street, city_line] if part]
+    if country and country.upper() not in {"US", "USA", "UNITED STATES"}:
+        parts.append(country)
+    return ", ".join(parts)
 
 
 def load_library_points(db_path: Path) -> list[LibraryPoint]:
@@ -46,6 +83,7 @@ def load_library_points(db_path: Path) -> list[LibraryPoint]:
     with sqlite3.connect(db_path) as connection:
         connection.row_factory = sqlite3.Row
         ensure_column(connection, "books", "status", "TEXT NOT NULL DEFAULT 'active'")
+        ensure_column(connection, "libraries", "charter_record_json", "TEXT")
         rows = connection.execute(
             """
             SELECT
@@ -54,6 +92,7 @@ def load_library_points(db_path: Path) -> list[LibraryPoint]:
                 l.description,
                 l.latitude,
                 l.longitude,
+                l.charter_record_json,
                 COUNT(b.id) AS book_count
             FROM libraries l
             LEFT JOIN books b
@@ -74,6 +113,7 @@ def load_library_points(db_path: Path) -> list[LibraryPoint]:
             latitude=float(row["latitude"]),
             longitude=float(row["longitude"]),
             book_count=int(row["book_count"] or 0),
+            official_address=format_official_address(row["charter_record_json"]),
         )
         for row in rows
     ]
@@ -170,8 +210,9 @@ def render_library_map(db_path: Path = DEFAULT_DB_PATH, output_path: Path = DEFA
         label = point_label(index)
         csn = escape(point.csn)
         title = escape(point.name)
+        location_label = escape(point.location_label)
         description = escape(point.description[:94] + ("..." if len(point.description) > 94 else ""))
-        described_as_raw = f"{point.csn}: {point.description}"
+        described_as_raw = point.description
         described_as = escape(described_as_raw[:106] + ("..." if len(described_as_raw) > 106 else ""))
 
         marker_rows.append(
@@ -189,7 +230,7 @@ def render_library_map(db_path: Path = DEFAULT_DB_PATH, output_path: Path = DEFA
       <circle cx="0" cy="-8" r="18" fill="{color}" stroke="#213226" stroke-width="3"/>
       <text x="0" y="-1" text-anchor="middle" font-family="Arial, sans-serif" font-size="17" font-weight="800" fill="#fffaf0">{label}</text>
       <text x="32" y="-16" font-family="Arial, sans-serif" font-size="19" font-weight="800" fill="#1f2d24">{csn} - {title}</text>
-      <text x="32" y="8" font-family="Arial, sans-serif" font-size="15" fill="#536158">{point.book_count} books at {point.latitude:.4f}, {point.longitude:.4f}</text>
+      <text x="32" y="8" font-family="Arial, sans-serif" font-size="15" fill="#536158">{point.book_count} books at {location_label}</text>
       <text x="32" y="30" font-family="Arial, sans-serif" font-size="13" fill="#7a8079">{described_as}</text>
     </g>"""
         )

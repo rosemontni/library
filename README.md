@@ -2,15 +2,15 @@
 
 # Civitas Library
 
-Civitas Library is a lightweight prototype for cataloging sidewalk mini-libraries from a photo and making nearby-book lookup possible from one shared central database.
+Civitas Library catalogs neighborhood mini-libraries from photos and makes nearby-book lookup possible from one shared central database.
 
-The website is the source of truth. People can contribute by uploading a shelf photo on the website, or by using the Android app to capture/review a shelf and sync it to the same website database.
+The database is the source of truth. The GitHub Pages site publishes a searchable public snapshot, while the local web app and Android app support capture, review, and sync workflows. Contributors can also send photos by email or share them through Google Photos for later intake.
 
 ## Current library map
 
 ![Map of indexed Civitas Library locations](assets/library-map.svg)
 
-The map is generated from the local SQLite database by [scripts/render_library_map.py](scripts/render_library_map.py). Every successful library save refreshes [assets/library-map.svg](assets/library-map.svg), so the README map stays in sync as new libraries are added.
+The map is generated from the local SQLite database by [scripts/render_library_map.py](scripts/render_library_map.py). Every successful library save refreshes [assets/library-map.svg](assets/library-map.svg), so the README map stays in sync as new libraries are added. Each mapped shelf receives a Civitas Library Serial Number, or CSN, based on its database insertion order.
 
 You can also regenerate it manually:
 
@@ -20,7 +20,7 @@ python scripts\render_library_map.py
 
 ## GitHub Pages map and search
 
-The repository also includes a static GitHub Pages site in [docs](docs). It loads [docs/atlas-data.json](docs/atlas-data.json), renders a zoomable OpenStreetMap/Leaflet map, and searches books directly in the browser.
+The repository also includes a static GitHub Pages site in [docs](docs). It loads [docs/atlas-data.json](docs/atlas-data.json), renders a zoomable OpenStreetMap/Leaflet map, searches books directly in the browser, highlights the newest and oldest dated books, and includes dated notes from the site builder.
 
 Regenerate the Pages data snapshot before publishing:
 
@@ -28,19 +28,32 @@ Regenerate the Pages data snapshot before publishing:
 python scripts\export_github_pages.py
 ```
 
-The exporter writes library coordinates and book metadata only. It intentionally omits original and uploaded photos so private capture files are not published. On `main`, [.github/workflows/github-pages.yml](.github/workflows/github-pages.yml) deploys the `docs/` folder to GitHub Pages.
+The exporter writes public shelf metadata, CSNs, location labels, book metadata, and 144x144 derived shelf icons only. It intentionally omits original and uploaded photos so private capture files are not published. When a Little Free Library charter match is available, the public site shows the official address instead of raw coordinates; otherwise it falls back to coordinates. On `main`, [.github/workflows/github-pages.yml](.github/workflows/github-pages.yml) deploys the `docs/` folder to GitHub Pages.
+
+## How to contribute photos
+
+Send two GPS-tagged photos to `civitaslibrary@gmail.com`:
+
+- Take a contents photo close enough for book titles on spines or covers to be readable.
+- Take a surroundings photo wide enough to show the mini library in context so people can recognize it.
+- Keep GPS/location metadata enabled on the photos. Uploads without photo EXIF GPS are rejected.
+- If a Little Free Library charter number is visible, include it or make sure it is readable in the photo.
+
+You can contribute either by attaching the photos to an email or by selecting both photos in Google Photos and sharing them with `civitaslibrary@gmail.com`.
 
 ## What it does
 
-- Takes a close-up books photo for extraction and an optional wider locator photo for wayfinding.
-- Pulls geolocation from photo EXIF GPS when it exists.
-- Falls back to browser geolocation when the user allows it.
+- Takes a close-up books photo for extraction and a wider locator photo for wayfinding.
+- Keeps a shelf record even when the library is currently empty.
+- Requires photo EXIF GPS and rejects uploads that cannot be placed on the map.
 - Uses the OpenAI Responses API to extract visible books and metadata into JSON.
 - Lets a human review and edit the draft before saving.
+- Records visible Little Free Library charter numbers for future matching and reference.
 - Stores libraries and books in a central SQLite database file.
+- Preserves removed-book history when a newer shelf photo replaces older inventory.
 - Searches the database by title, author, topic, publisher, or ISBN and ranks matches by ZIP code or browser-location distance.
 - Accepts Android app contributions through `POST /api/mobile/libraries`.
-- Shows the locator photo in search results so readers can recognize the mini bookcase nearby.
+- Shows a small derived shelf icon on the public map so readers can recognize the mini bookcase without publishing original photos.
 
 ## Project layout
 
@@ -87,7 +100,7 @@ The CLI ingest path is useful when you already have a photo on disk and a review
 python scripts\ingest_photo.py "C:\Users\xliup\Downloads\PXL_20260328_161848034 (1).jpg"
 ```
 
-The default metadata file is [samples/blue_little_library_books.json](samples/blue_little_library_books.json). The script copies the photo into `data/uploads`, extracts EXIF GPS, inserts the library and books into SQLite, then runs a verification search.
+The default metadata file is [samples/blue_little_library_books.json](samples/blue_little_library_books.json). The script copies the photo into `data/uploads`, requires EXIF GPS, inserts the library and books into SQLite, creates a derived shelf icon, then runs a verification search.
 
 ## Android app
 

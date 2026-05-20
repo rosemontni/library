@@ -2,15 +2,21 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
+import re
 import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from PIL import Image, ImageOps, UnidentifiedImageError
+
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 DEFAULT_DB_PATH = ROOT_DIR / "data" / "little_library_atlas.db"
 DEFAULT_OUTPUT_PATH = ROOT_DIR / "docs" / "atlas-data.json"
+DEFAULT_ICON_DIR = Path(os.getenv("LIBRARY_ICONS_DIR", str(ROOT_DIR / "docs" / "library-icons")))
+ICON_SIZE = 144
 
 
 def ensure_column(connection: sqlite3.Connection, table: str, column: str, definition: str) -> None:
@@ -21,10 +27,12 @@ def ensure_column(connection: sqlite3.Connection, table: str, column: str, defin
 
 def ensure_export_schema(connection: sqlite3.Connection) -> None:
     ensure_column(connection, "books", "status", "TEXT NOT NULL DEFAULT 'active'")
+    ensure_column(connection, "libraries", "icon_path", "TEXT")
     ensure_column(connection, "libraries", "charter_number", "TEXT")
     ensure_column(connection, "libraries", "charter_lookup_status", "TEXT")
     ensure_column(connection, "libraries", "charter_record_checked_at", "TEXT")
     ensure_column(connection, "libraries", "charter_record_distance_miles", "REAL")
+    ensure_column(connection, "libraries", "charter_record_json", "TEXT")
 
 
 def parse_place_clues(raw_value: str | None) -> list[str]:
@@ -35,6 +43,92 @@ def parse_place_clues(raw_value: str | None) -> list[str]:
     except json.JSONDecodeError:
         return []
     return [str(item) for item in parsed if str(item).strip()] if isinstance(parsed, list) else []
+
+
+def format_official_address(raw_value: str | None) -> str:
+    record = parse_json_object(raw_value)
+    if record.get("status") != "matched":
+        return ""
+
+    street = str(record.get("street") or "").strip()
+    city = str(record.get("city") or "").strip()
+    state = str(record.get("state") or "").strip()
+    postal_code = str(record.get("postal_code") or "").strip()
+    country = str(record.get("country") or "").strip()
+
+    city_line = ", ".join(part for part in [city, state] if part)
+    if postal_code:
+        city_line = f"{city_line} {postal_code}".strip()
+
+    parts = [part for part in [street, city_line] if part]
+    if country and country.upper() not in {"US", "USA", "UNITED STATES"}:
+        parts.append(country)
+    return ", ".join(parts)
+
+
+def parse_json_object(raw_value: str | None) -> dict[str, Any]:
+    if not raw_value:
+        return {}
+    try:
+        parsed = json.loads(raw_value)
+    except json.JSONDecodeError:
+        return {}
+    return parsed if isinstance(parsed, dict) else {}
+
+
+def slugify_filename(value: str, fallback: str = "library") -> str:
+    slug = re.sub(r"[^a-z0-9]+", "-", value.lower()).strip("-")
+    return slug[:48].strip("-") or fallback
+
+
+def icon_filename(library_id: int, library_name: str) -> str:
+    return f"csn-{library_id:04d}-{slugify_filename(library_name)}.png"
+
+
+def safe_source_photo_path(raw_path: str | None) -> Path | None:
+    normalized = str(raw_path or "").strip().lstrip("/").replace("\\", "/")
+    if not normalized:
+        return None
+    candidate = (ROOT_DIR / normalized).resolve()
+    try:
+        candidate.relative_to(ROOT_DIR.resolve())
+    except ValueError:
+        return None
+    return candidate
+
+
+def create_library_icon(library_id: int, library_name: str, source_photo_path: str | None) -> str:
+    source = safe_source_photo_path(source_photo_path)
+    if not source or not source.exists():
+        return ""
+
+    DEFAULT_ICON_DIR.mkdir(parents=True, exist_ok=True)
+    output = DEFAULT_ICON_DIR / icon_filename(library_id, library_name)
+    try:
+        with Image.open(source) as image:
+            image = ImageOps.exif_transpose(image).convert("RGB")
+            resample = getattr(Image, "Resampling", Image).LANCZOS
+            icon = ImageOps.fit(image, (ICON_SIZE, ICON_SIZE), method=resample)
+            icon.save(output, format="PNG", optimize=True)
+    except (OSError, UnidentifiedImageError):
+        return ""
+    return f"library-icons/{output.name}"
+
+
+def ensure_library_icon(connection: sqlite3.Connection, row: sqlite3.Row) -> str:
+    existing_icon_path = str(row["icon_path"] or "").strip().replace("\\", "/")
+    if existing_icon_path:
+        existing_icon = DEFAULT_ICON_DIR / Path(existing_icon_path).name
+        if existing_icon.exists():
+            return existing_icon_path
+
+    library_id = int(row["id"])
+    library_name = row["name"] or f"Library {library_id}"
+    source_photo = row["location_photo_path"] or row["books_photo_path"] or row["photo_path"]
+    icon_path = create_library_icon(library_id, library_name, source_photo)
+    if icon_path:
+        connection.execute("UPDATE libraries SET icon_path = ? WHERE id = ?", (icon_path, library_id))
+    return icon_path
 
 
 def load_libraries(connection: sqlite3.Connection) -> list[dict[str, Any]]:
@@ -49,10 +143,15 @@ def load_libraries(connection: sqlite3.Connection) -> list[dict[str, Any]]:
             l.location_source,
             l.location_confidence,
             l.place_clues,
+            l.photo_path,
+            l.books_photo_path,
+            l.location_photo_path,
+            l.icon_path,
             l.charter_number,
             l.charter_lookup_status,
             l.charter_record_checked_at,
             l.charter_record_distance_miles,
+            l.charter_record_json,
             l.created_at,
             COUNT(b.id) AS book_count,
             GROUP_CONCAT(b.title, '||') AS sample_books
@@ -68,6 +167,8 @@ def load_libraries(connection: sqlite3.Connection) -> list[dict[str, Any]]:
     libraries: list[dict[str, Any]] = []
     for row in rows:
         sample_books = [title for title in (row["sample_books"] or "").split("||") if title][:5]
+        official_address = format_official_address(row["charter_record_json"])
+        icon_path = ensure_library_icon(connection, row)
         libraries.append(
             {
                 "id": int(row["id"]),
@@ -83,6 +184,9 @@ def load_libraries(connection: sqlite3.Connection) -> list[dict[str, Any]]:
                 "charter_lookup_status": row["charter_lookup_status"] or "",
                 "charter_record_checked_at": row["charter_record_checked_at"] or "",
                 "charter_record_distance_miles": row["charter_record_distance_miles"],
+                "official_address": official_address,
+                "location_label": official_address or "",
+                "icon_url": icon_path,
                 "book_count": int(row["book_count"] or 0),
                 "sample_books": sample_books,
                 "created_at": row["created_at"] or "",
@@ -156,7 +260,8 @@ def export_pages_data(db_path: Path = DEFAULT_DB_PATH, output_path: Path = DEFAU
         },
         "privacy": {
             "photos_included": False,
-            "note": "Original and uploaded photos are intentionally omitted from the static GitHub Pages export.",
+            "derived_icons_included": True,
+            "note": "Original and uploaded photos are intentionally omitted. The site only includes small 144x144 derived library icons.",
         },
         "libraries": libraries,
         "books": books,

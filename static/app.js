@@ -101,8 +101,25 @@ function formatNumber(value, digits = 4) {
   return Number(value).toFixed(digits);
 }
 
+function formatCount(count, singular, plural = `${singular}s`) {
+  const value = Number(count || 0);
+  return `${value} ${value === 1 ? singular : plural}`;
+}
+
 function libraryCsn(library) {
   return library?.csn || (library?.id ? `CSN-${library.id}` : "CSN pending");
+}
+
+function libraryLocationLabel(library) {
+  if (library?.official_address) {
+    return library.official_address;
+  }
+  if (library?.location_label) {
+    return library.location_label;
+  }
+  return libraryHasCoordinates(library)
+    ? `${formatNumber(library.latitude)}°, ${formatNumber(library.longitude)}°`
+    : "Coordinates missing";
 }
 
 function setCallout(message, mode = "muted") {
@@ -191,20 +208,32 @@ function markerIcon(bookCount = 0) {
 }
 
 function popupHtml(library) {
-  const photo = libraryPhoto(library);
+  const photo = library.icon_url || libraryPhoto(library);
   const csn = libraryCsn(library);
+  const locationLabel = libraryLocationLabel(library);
   const sampleBooks = (library.sample_books || [])
     .map((title) => `<li>${escapeHtml(title)}</li>`)
     .join("");
   return `
     <article class="map-popup">
-      ${photo ? `<img src="${escapeHtml(photo)}" alt="${escapeHtml(library.name)} locator photo" />` : ""}
-      <strong>${escapeHtml(csn)} · ${escapeHtml(library.name)}</strong>
-      <p><b>${escapeHtml(csn)}:</b> ${escapeHtml(library.description || "No description saved yet.")}</p>
-      <small>${library.book_count || 0} books · ${escapeHtml(library.location_source || "manual")}</small>
+      <div class="popup-head">
+        ${photo ? `<img class="popup-icon" src="${escapeHtml(photo)}" alt="${escapeHtml(library.name)} icon" />` : ""}
+        <div>
+          <strong>${escapeHtml(csn)} · ${escapeHtml(library.name)}</strong>
+          <p>${escapeHtml(library.description || "No description saved yet.")}</p>
+          <small>${formatCount(library.book_count, "book")} · ${escapeHtml(locationLabel)}</small>
+        </div>
+      </div>
       ${sampleBooks ? `<ul>${sampleBooks}</ul>` : ""}
     </article>
   `;
+}
+
+function fitMapToMarkers() {
+  if (state.map && state.markerBounds) {
+    state.map.invalidateSize();
+    state.map.fitBounds(state.markerBounds, { padding: [42, 42], maxZoom: 14 });
+  }
 }
 
 function renderMap(libraries) {
@@ -222,14 +251,20 @@ function renderMap(libraries) {
     const coordinates = [library.latitude, library.longitude];
     const marker = L.marker(coordinates, { icon: markerIcon(library.book_count) })
       .addTo(state.map)
-      .bindPopup(popupHtml(library), { maxWidth: 290 });
+      .bindPopup(popupHtml(library), {
+        className: "library-popup",
+        minWidth: 280,
+        maxWidth: 320,
+      });
     state.markers.set(library.id, marker);
     markerCoordinates.push(coordinates);
   });
 
   if (markerCoordinates.length) {
     state.markerBounds = L.latLngBounds(markerCoordinates);
-    state.map.fitBounds(state.markerBounds, { padding: [42, 42], maxZoom: 14 });
+    fitMapToMarkers();
+    requestAnimationFrame(fitMapToMarkers);
+    setTimeout(fitMapToMarkers, 250);
     elements.mapStatus.textContent = `${markerCoordinates.length} mapped shelves. Scroll or pinch to zoom.`;
   } else {
     state.markerBounds = null;
@@ -249,18 +284,16 @@ function renderLibraryList(libraries) {
     const card = document.createElement("article");
     card.className = "library-mini-card";
     const photo = libraryPhoto(library);
-    const coords = libraryHasCoordinates(library)
-      ? `${formatNumber(library.latitude)}°, ${formatNumber(library.longitude)}°`
-      : "Coordinates missing";
+    const locationLabel = libraryLocationLabel(library);
     const samples = (library.sample_books || []).slice(0, 3).map(escapeHtml).join(" · ");
     card.innerHTML = `
       ${photo ? `<img src="${escapeHtml(photo)}" alt="${escapeHtml(library.name)} locator photo" />` : `<div class="library-mini-empty">No photo</div>`}
       <div>
         <h3>${escapeHtml(libraryCsn(library))} · ${escapeHtml(library.name)}</h3>
-        <p><b>${escapeHtml(libraryCsn(library))}:</b> ${escapeHtml(library.description || "No description saved yet.")}</p>
+        <p>${escapeHtml(library.description || "No description saved yet.")}</p>
         <div class="mini-meta">
           <span>${library.book_count || 0} books</span>
-          <span>${escapeHtml(coords)}</span>
+          <span>${escapeHtml(locationLabel)}</span>
         </div>
         ${samples ? `<small>${samples}</small>` : ""}
       </div>
@@ -487,10 +520,7 @@ function renderSearchResults(results) {
     article.className = "result-card";
 
     const distanceLabel = formatDistance(group.distance_miles);
-    const libraryCoords =
-      group.library.latitude !== null && group.library.longitude !== null
-        ? `${formatNumber(group.library.latitude)}°, ${formatNumber(group.library.longitude)}°`
-        : "Coordinates not saved";
+    const libraryLocation = libraryLocationLabel(group.library);
 
     const locatorPhoto = group.library.location_photo_url || group.library.photo_url;
     const matchedBooks = group.books
@@ -514,14 +544,14 @@ function renderSearchResults(results) {
       <div class="result-head">
         <div>
           <h3 class="result-title">${escapeHtml(libraryCsn(group.library))} · ${escapeHtml(group.library.name)}</h3>
-          <p><b>${escapeHtml(libraryCsn(group.library))}:</b> ${escapeHtml(group.library.description || "No library description saved yet.")}</p>
+          <p>${escapeHtml(group.library.description || "No library description saved yet.")}</p>
         </div>
         <span class="distance-pill">${escapeHtml(distanceLabel)}</span>
       </div>
       <div class="result-meta compact-meta">
         <span>${escapeHtml(libraryCsn(group.library))}</span>
         <span>${group.books.length} matching book${group.books.length === 1 ? "" : "s"}</span>
-        <span>${escapeHtml(libraryCoords)}</span>
+        <span>${escapeHtml(libraryLocation)}</span>
         <span>${escapeHtml(group.library.location_source || "manual")}</span>
       </div>
       <ul class="matched-books">${matchedBooks}</ul>

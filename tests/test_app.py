@@ -1,5 +1,6 @@
 import gc
 import http.client
+import io
 import json
 import os
 import tempfile
@@ -7,8 +8,35 @@ import threading
 import unittest
 from pathlib import Path
 
+from PIL import Image
+
 import app
 from app import GeoPoint, build_search_blob, choose_best_location, haversine_miles
+
+
+def gps_jpeg_bytes(latitude: float = 39.29, longitude: float = -76.61, color: str = "blue") -> bytes:
+    image = Image.new("RGB", (180, 180), color)
+    exif = Image.Exif()
+    lat_ref = "N" if latitude >= 0 else "S"
+    lon_ref = "E" if longitude >= 0 else "W"
+
+    def dms(value: float) -> tuple[float, float, float]:
+        absolute = abs(value)
+        degrees = int(absolute)
+        minutes_float = (absolute - degrees) * 60
+        minutes = int(minutes_float)
+        seconds = (minutes_float - minutes) * 60
+        return float(degrees), float(minutes), float(seconds)
+
+    exif[0x8825] = {
+        1: lat_ref,
+        2: dms(latitude),
+        3: lon_ref,
+        4: dms(longitude),
+    }
+    output = io.BytesIO()
+    image.save(output, format="JPEG", exif=exif)
+    return output.getvalue()
 
 
 class AppTests(unittest.TestCase):
@@ -28,6 +56,14 @@ class AppTests(unittest.TestCase):
         browser_location = GeoPoint(39.30, -76.62, "browser_gps", 0.9)
         chosen = choose_best_location(exif_location, browser_location)
         self.assertEqual(chosen.source, "photo_exif")
+
+    def test_uploaded_photo_without_gps_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as tempdir:
+            upload_path = Path(tempdir) / "no-gps.jpg"
+            upload_path.write_bytes(b"not a gps tagged jpeg")
+            with self.assertRaisesRegex(ValueError, "EXIF GPS"):
+                app.require_uploaded_photo_gps([{"upload_path": upload_path, "location": None}])
+            self.assertFalse(upload_path.exists())
 
     def test_insert_library_allows_empty_shelf(self) -> None:
         original_data_dir = app.DATA_DIR
@@ -236,28 +272,34 @@ class AppTests(unittest.TestCase):
                         ],
                     }
                     boundary = "LittleLibraryAtlasTestBoundary"
-                    body = (
-                        f"--{boundary}\r\n"
-                        "Content-Disposition: form-data; name=\"payload\"\r\n\r\n"
-                        f"{json.dumps(payload)}\r\n"
-                        f"--{boundary}\r\n"
-                        "Content-Disposition: form-data; name=\"location_photo\"; filename=\"locator.jpg\"\r\n"
-                        "Content-Type: image/jpeg\r\n\r\n"
-                        "fake locator image\r\n"
-                        f"--{boundary}\r\n"
-                        "Content-Disposition: form-data; name=\"location_photo\"; filename=\"locator-2.jpg\"\r\n"
-                        "Content-Type: image/jpeg\r\n\r\n"
-                        "fake second locator image\r\n"
-                        f"--{boundary}\r\n"
-                        "Content-Disposition: form-data; name=\"additional_photos\"; filename=\"charter.jpg\"\r\n"
-                        "Content-Type: image/jpeg\r\n\r\n"
-                        "fake charter label image\r\n"
-                        f"--{boundary}\r\n"
-                        "Content-Disposition: form-data; name=\"additional_photos\"; filename=\"side.jpg\"\r\n"
-                        "Content-Type: image/jpeg\r\n\r\n"
-                        "fake side image\r\n"
-                        f"--{boundary}--\r\n"
-                    ).encode("utf-8")
+                    parts = [
+                        (
+                            "payload",
+                            None,
+                            "application/json",
+                            json.dumps(payload).encode("utf-8"),
+                        ),
+                        ("location_photo", "locator.jpg", "image/jpeg", gps_jpeg_bytes(color="navy")),
+                        ("location_photo", "locator-2.jpg", "image/jpeg", gps_jpeg_bytes(color="green")),
+                        ("additional_photos", "charter.jpg", "image/jpeg", gps_jpeg_bytes(color="purple")),
+                        ("additional_photos", "side.jpg", "image/jpeg", gps_jpeg_bytes(color="orange")),
+                    ]
+                    chunks: list[bytes] = []
+                    for name, filename, content_type, content in parts:
+                        chunks.append(f"--{boundary}\r\n".encode("utf-8"))
+                        if filename:
+                            chunks.append(
+                                (
+                                    f"Content-Disposition: form-data; name=\"{name}\"; filename=\"{filename}\"\r\n"
+                                    f"Content-Type: {content_type}\r\n\r\n"
+                                ).encode("utf-8")
+                            )
+                        else:
+                            chunks.append(f"Content-Disposition: form-data; name=\"{name}\"\r\n\r\n".encode("utf-8"))
+                        chunks.append(content)
+                        chunks.append(b"\r\n")
+                    chunks.append(f"--{boundary}--\r\n".encode("utf-8"))
+                    body = b"".join(chunks)
 
                     connection = http.client.HTTPConnection("127.0.0.1", server.server_port, timeout=5)
                     connection.request(

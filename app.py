@@ -20,6 +20,8 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import quote, urlparse
 
+from PIL import Image, ImageOps, UnidentifiedImageError
+
 
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "data"
@@ -28,6 +30,8 @@ UPLOADS_DIR = DATA_DIR / "uploads"
 DB_PATH = DATA_DIR / "little_library_atlas.db"
 MAP_OUTPUT_PATH = Path(os.getenv("LIBRARY_MAP_PATH", str(BASE_DIR / "assets" / "library-map.svg")))
 PAGES_DATA_PATH = Path(os.getenv("LIBRARY_PAGES_DATA_PATH", str(BASE_DIR / "docs" / "atlas-data.json")))
+LIBRARY_ICONS_DIR = Path(os.getenv("LIBRARY_ICONS_DIR", str(BASE_DIR / "docs" / "library-icons")))
+LIBRARY_ICON_SIZE = 144
 
 HOST = os.getenv("HOST", "127.0.0.1")
 PORT = int(os.getenv("PORT", "8000"))
@@ -177,6 +181,7 @@ class ClosingConnection(sqlite3.Connection):
 def ensure_directories() -> None:
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
+    LIBRARY_ICONS_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def get_connection() -> sqlite3.Connection:
@@ -212,6 +217,7 @@ def initialize_database() -> None:
                 photo_path TEXT,
                 books_photo_path TEXT,
                 location_photo_path TEXT,
+                icon_path TEXT,
                 charter_number TEXT,
                 charter_lookup_status TEXT,
                 charter_record_checked_at TEXT,
@@ -259,6 +265,7 @@ def initialize_database() -> None:
         )
         ensure_column(connection, "libraries", "books_photo_path", "TEXT")
         ensure_column(connection, "libraries", "location_photo_path", "TEXT")
+        ensure_column(connection, "libraries", "icon_path", "TEXT")
         ensure_column(connection, "libraries", "charter_number", "TEXT")
         ensure_column(connection, "libraries", "charter_lookup_status", "TEXT")
         ensure_column(connection, "libraries", "charter_record_checked_at", "TEXT")
@@ -401,6 +408,27 @@ def parse_json_object(raw_value: Any) -> dict[str, Any]:
     return parsed if isinstance(parsed, dict) else {}
 
 
+def format_official_address(raw_value: Any) -> str:
+    record = parse_json_object(raw_value)
+    if record.get("status") != "matched":
+        return ""
+
+    street = str(record.get("street") or "").strip()
+    city = str(record.get("city") or "").strip()
+    state = str(record.get("state") or "").strip()
+    postal_code = str(record.get("postal_code") or "").strip()
+    country = str(record.get("country") or "").strip()
+
+    city_line = ", ".join(part for part in [city, state] if part)
+    if postal_code:
+        city_line = f"{city_line} {postal_code}".strip()
+
+    parts = [part for part in [street, city_line] if part]
+    if country and country.upper() not in {"US", "USA", "UNITED STATES"}:
+        parts.append(country)
+    return ", ".join(parts)
+
+
 def normalize_photo_paths(value: Any) -> list[str]:
     if value is None:
         return []
@@ -500,9 +528,89 @@ def photo_records_from_saved(saved: list[dict[str, Any]]) -> list[dict[str, Any]
     return records
 
 
+def remove_saved_uploads(saved: list[dict[str, Any]]) -> None:
+    for item in saved:
+        upload_path = item.get("upload_path")
+        if isinstance(upload_path, Path):
+            try:
+                upload_path.unlink(missing_ok=True)
+            except OSError:
+                pass
+
+
+def require_uploaded_photo_gps(saved: list[dict[str, Any]]) -> dict[str, Any]:
+    for item in saved:
+        if isinstance(item.get("location"), GeoPoint):
+            return item
+    remove_saved_uploads(saved)
+    raise ValueError(
+        "Rejected: at least one uploaded photo must include EXIF GPS metadata. "
+        "Enable location for the camera and upload the original GPS-tagged photo."
+    )
+
+
 def photo_url_from_path(photo_path: Any) -> str | None:
     path = str(photo_path or "").strip().lstrip("/")
     return f"/{path.replace(os.sep, '/')}" if path else None
+
+
+def public_icon_path(icon_path: Any) -> str | None:
+    path = str(icon_path or "").strip().lstrip("/").replace("\\", "/")
+    return f"/{path}" if path else None
+
+
+def slugify_filename(value: str, fallback: str = "library") -> str:
+    slug = re.sub(r"[^a-z0-9]+", "-", value.lower()).strip("-")
+    return slug[:48].strip("-") or fallback
+
+
+def icon_filename(library_id: int, library_name: str) -> str:
+    return f"csn-{library_id:04d}-{slugify_filename(library_name)}.png"
+
+
+def source_photo_to_path(photo_path: Any) -> Path | None:
+    normalized = str(photo_path or "").strip().lstrip("/").replace("\\", "/")
+    if not normalized:
+        return None
+    candidate = (BASE_DIR / normalized).resolve()
+    try:
+        candidate.relative_to(BASE_DIR.resolve())
+    except ValueError:
+        return None
+    return candidate
+
+
+def create_library_icon(library_id: int, library_name: str, source_photo_path: Any) -> str:
+    source = source_photo_to_path(source_photo_path)
+    if not source or not source.exists():
+        return ""
+
+    ensure_directories()
+    output = LIBRARY_ICONS_DIR / icon_filename(library_id, library_name)
+    try:
+        with Image.open(source) as image:
+            image = ImageOps.exif_transpose(image).convert("RGB")
+            resample = getattr(Image, "Resampling", Image).LANCZOS
+            icon = ImageOps.fit(image, (LIBRARY_ICON_SIZE, LIBRARY_ICON_SIZE), method=resample)
+            icon.save(output, format="PNG", optimize=True)
+    except (OSError, UnidentifiedImageError):
+        return ""
+
+    return f"library-icons/{output.name}"
+
+
+def select_icon_source_photo(payload: dict[str, Any], photo_path: str) -> str:
+    return first_photo_path(
+        payload.get("icon_source_photo_path"),
+        payload.get("icon_source_photo_paths"),
+        payload.get("location_photo_path"),
+        payload.get("location_photo_paths"),
+        payload.get("books_photo_path"),
+        payload.get("books_photo_paths"),
+        photo_path,
+        payload.get("photo_path"),
+        payload.get("photo_paths"),
+    )
 
 
 def current_timestamp() -> str:
@@ -1301,6 +1409,7 @@ def insert_library(payload: dict[str, Any]) -> int:
     location_photo_path = first_photo_path(payload.get("location_photo_path"), payload.get("location_photo_paths"))
     legacy_photo_path = first_photo_path(payload.get("photo_path"), payload.get("photo_paths"))
     photo_path = location_photo_path or books_photo_path or legacy_photo_path
+    icon_source_photo_path = select_icon_source_photo(payload, photo_path)
     raw_place_clues = payload.get("place_clues", [])
     if isinstance(raw_place_clues, str):
         place_clues_list = [item.strip() for item in raw_place_clues.split(",") if item.strip()]
@@ -1357,6 +1466,7 @@ def insert_library(payload: dict[str, Any]) -> int:
                     photo_path = COALESCE(NULLIF(?, ''), photo_path),
                     books_photo_path = COALESCE(NULLIF(?, ''), books_photo_path),
                     location_photo_path = COALESCE(NULLIF(?, ''), location_photo_path),
+                    icon_path = COALESCE(NULLIF(?, ''), icon_path),
                     charter_number = COALESCE(NULLIF(?, ''), charter_number),
                     charter_lookup_status = COALESCE(NULLIF(?, ''), charter_lookup_status),
                     charter_record_checked_at = COALESCE(NULLIF(?, ''), charter_record_checked_at),
@@ -1376,6 +1486,7 @@ def insert_library(payload: dict[str, Any]) -> int:
                     photo_path,
                     books_photo_path,
                     location_photo_path,
+                    payload.get("icon_path") or "",
                     charter_number,
                     charter_lookup_status,
                     charter_record_checked_at,
@@ -1399,6 +1510,7 @@ def insert_library(payload: dict[str, Any]) -> int:
                     photo_path,
                     books_photo_path,
                     location_photo_path,
+                    icon_path,
                     charter_number,
                     charter_lookup_status,
                     charter_record_checked_at,
@@ -1406,7 +1518,7 @@ def insert_library(payload: dict[str, Any]) -> int:
                     charter_record_json,
                     place_clues
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     library_name,
@@ -1419,6 +1531,7 @@ def insert_library(payload: dict[str, Any]) -> int:
                     photo_path,
                     books_photo_path,
                     location_photo_path,
+                    str(payload.get("icon_path") or ""),
                     charter_number,
                     charter_lookup_status,
                     charter_record_checked_at,
@@ -1430,6 +1543,9 @@ def insert_library(payload: dict[str, Any]) -> int:
             library_id = int(cursor.lastrowid)
 
         record_library_photos(connection, library_id, payload)
+        icon_path = create_library_icon(library_id, library_name, icon_source_photo_path)
+        if icon_path:
+            connection.execute("UPDATE libraries SET icon_path = ? WHERE id = ?", (icon_path, library_id))
         upsert_library_inventory(connection, library_id, sanitized_books, replace_inventory)
 
     refresh_library_map()
@@ -1508,7 +1624,9 @@ def search_books(
             l.photo_path,
             l.books_photo_path,
             l.location_photo_path,
-            l.charter_number
+            l.icon_path,
+            l.charter_number,
+            l.charter_record_json
         FROM books b
         JOIN libraries l ON l.id = b.library_id
     """
@@ -1539,6 +1657,8 @@ def search_books(
                 continue
         if not category_matches(row, category):
             continue
+        official_address = format_official_address(row["charter_record_json"])
+        icon_url = public_icon_path(row["icon_path"])
 
         results.append(
             {
@@ -1563,6 +1683,9 @@ def search_books(
                     "location_source": row["location_source"],
                     "location_confidence": row["location_confidence"],
                     "charter_number": row["charter_number"],
+                    "official_address": official_address,
+                    "location_label": official_address or "",
+                    "icon_url": icon_url,
                     "photo_url": f"/{location_photo_path.replace(os.sep, '/')}" if location_photo_path else None,
                     "books_photo_url": f"/{books_photo_path.replace(os.sep, '/')}" if books_photo_path else None,
                     "location_photo_url": f"/{location_photo_path.replace(os.sep, '/')}" if location_photo_path else None,
@@ -1595,10 +1718,12 @@ def list_libraries() -> list[dict[str, Any]]:
             l.photo_path,
             l.books_photo_path,
             l.location_photo_path,
+            l.icon_path,
             l.charter_number,
             l.charter_lookup_status,
             l.charter_record_checked_at,
             l.charter_record_distance_miles,
+            l.charter_record_json,
             l.place_clues,
             COUNT(b.id) AS book_count,
             GROUP_CONCAT(b.title, '||') AS book_titles
@@ -1616,7 +1741,9 @@ def list_libraries() -> list[dict[str, Any]]:
     for row in rows:
         books_photo_path = row["books_photo_path"] or row["photo_path"]
         location_photo_path = row["location_photo_path"] or row["photo_path"] or row["books_photo_path"]
+        icon_url = public_icon_path(row["icon_path"])
         book_titles = [title for title in (row["book_titles"] or "").split("||") if title]
+        official_address = format_official_address(row["charter_record_json"])
         try:
             place_clues = json.loads(row["place_clues"] or "[]")
         except json.JSONDecodeError:
@@ -1635,6 +1762,9 @@ def list_libraries() -> list[dict[str, Any]]:
                 "charter_lookup_status": row["charter_lookup_status"] or "",
                 "charter_record_checked_at": row["charter_record_checked_at"] or "",
                 "charter_record_distance_miles": row["charter_record_distance_miles"],
+                "official_address": official_address,
+                "location_label": official_address or "",
+                "icon_url": icon_url,
                 "photo_url": f"/{location_photo_path.replace(os.sep, '/')}" if location_photo_path else None,
                 "books_photo_url": f"/{books_photo_path.replace(os.sep, '/')}" if books_photo_path else None,
                 "location_photo_url": f"/{location_photo_path.replace(os.sep, '/')}" if location_photo_path else None,
@@ -1680,6 +1810,10 @@ class LibraryAtlasHandler(BaseHTTPRequestHandler):
         if path.startswith("/data/uploads/"):
             relative = path.lstrip("/")
             target = BASE_DIR / relative
+            self.serve_file(target)
+            return
+        if path.startswith("/library-icons/"):
+            target = LIBRARY_ICONS_DIR / Path(path).name
             self.serve_file(target)
             return
 
@@ -1741,6 +1875,7 @@ class LibraryAtlasHandler(BaseHTTPRequestHandler):
             saved_locations = save_uploaded_images(location_uploads, "location_photo")
             saved_supplemental = save_uploaded_images(supplemental_uploads, "supplemental_photo")
             all_saved = saved_books + saved_locations + saved_supplemental
+            gps_photo = require_uploaded_photo_gps(all_saved)
 
             browser_location = build_browser_location(fields)
             photo_locations = [item["location"] for item in saved_locations + saved_books + saved_supplemental if item["location"]]
@@ -1750,10 +1885,6 @@ class LibraryAtlasHandler(BaseHTTPRequestHandler):
             if not saved_books:
                 warnings.append(
                     "No close-up books photo was attached. This library can still be saved, but book rows may need manual entry."
-                )
-            if not photo_locations and not browser_location:
-                warnings.append(
-                    "No photo EXIF GPS or browser geolocation was available, so the location fields still need manual confirmation."
                 )
 
             model_output: dict[str, Any] | None = None
@@ -1805,6 +1936,7 @@ class LibraryAtlasHandler(BaseHTTPRequestHandler):
             response_payload["location_photo_paths"] = [item["photo_path"] for item in saved_locations]
             response_payload["additional_photo_paths"] = [item["photo_path"] for item in saved_supplemental]
             response_payload["photo_paths"] = [item["photo_path"] for item in all_saved]
+            response_payload["icon_source_photo_path"] = gps_photo["photo_path"]
             self.send_json(response_payload)
         except ValueError as error:
             self.send_json({"error": str(error)}, HTTPStatus.BAD_REQUEST)
@@ -1831,6 +1963,12 @@ class LibraryAtlasHandler(BaseHTTPRequestHandler):
             saved_locations = save_uploaded_images(location_uploads, "location_photo")
             saved_supplemental = save_uploaded_images(supplemental_uploads, "supplemental_photo")
             all_saved = saved_books + saved_locations + saved_supplemental
+            if not all_saved:
+                self.send_json({"error": "Upload at least one GPS-tagged photo for this library."}, HTTPStatus.BAD_REQUEST)
+                return
+            gps_photo = require_uploaded_photo_gps(all_saved)
+            payload["geolocation"] = gps_photo["location"].to_dict()
+            payload["icon_source_photo_path"] = gps_photo["photo_path"]
 
             if saved_books:
                 payload["books_photo_paths"] = [item["photo_path"] for item in saved_books]

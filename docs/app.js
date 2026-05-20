@@ -76,6 +76,16 @@ function formatCoordinate(value) {
   return Number.isFinite(Number(value)) ? Number(value).toFixed(4) : "unknown";
 }
 
+function libraryLocationLabel(library) {
+  if (library?.official_address) {
+    return library.official_address;
+  }
+  if (library?.location_label) {
+    return library.location_label;
+  }
+  return `${formatCoordinate(library?.latitude)}, ${formatCoordinate(library?.longitude)}`;
+}
+
 function formatCount(count, singular, plural = `${singular}s`) {
   const value = Number(count || 0);
   return `${value} ${value === 1 ? singular : plural}`;
@@ -235,6 +245,82 @@ function renderGenreSummary(summary, title = "Top genres") {
   `;
 }
 
+function parsePublishedYear(value) {
+  const text = String(value ?? "");
+  const matches = Array.from(text.matchAll(/\b(1[5-9]\d{2}|20\d{2}|21\d{2})\b/g), (match) => Number(match[1]));
+  const latestReasonableYear = new Date().getFullYear() + 1;
+  return matches.find((year) => year >= 1450 && year <= latestReasonableYear) ?? null;
+}
+
+function uniqueDatedBooks(books = []) {
+  const seen = new Set();
+  return books
+    .map((book) => ({
+      ...book,
+      parsed_year: parsePublishedYear(book.published_year),
+    }))
+    .filter((book) => book.parsed_year !== null)
+    .filter((book) => {
+      const key = normalize([book.title, book.author].join(" "));
+      if (!key || seen.has(key)) {
+        return false;
+      }
+      seen.add(key);
+      return true;
+    });
+}
+
+function buildPublicationHighlights(books = []) {
+  const datedBooks = uniqueDatedBooks(books);
+  const byNewest = [...datedBooks].sort(
+    (a, b) => b.parsed_year - a.parsed_year || String(a.title || "").localeCompare(String(b.title || ""))
+  );
+  const byOldest = [...datedBooks].sort(
+    (a, b) => a.parsed_year - b.parsed_year || String(a.title || "").localeCompare(String(b.title || ""))
+  );
+  return {
+    newest: byNewest.slice(0, 5),
+    oldest: byOldest.slice(0, 5),
+  };
+}
+
+function bookShelfLabel(book) {
+  const library = state.librariesById.get(book.library_id);
+  return library ? `${libraryCsn(library)} · ${library.name}` : "Unknown shelf";
+}
+
+function renderPublicationList(title, subtitle, books, emptyMessage) {
+  const rows = books
+    .map((book) => {
+      const details = [book.author, primaryGenre(book.genre)].filter(Boolean).join(" · ");
+      return `
+        <li class="publication-item">
+          <span class="publication-year">${book.parsed_year}</span>
+          <div>
+            <strong>${escapeHtml(book.title || "Untitled")}</strong>
+            ${details ? `<p>${escapeHtml(details)}</p>` : ""}
+            <small>${escapeHtml(bookShelfLabel(book))}</small>
+          </div>
+        </li>
+      `;
+    })
+    .join("");
+
+  return `
+    <section class="publication-card">
+      <div class="publication-card-heading">
+        <h4>${escapeHtml(title)}</h4>
+        <p>${escapeHtml(subtitle)}</p>
+      </div>
+      ${
+        rows
+          ? `<ol class="publication-list">${rows}</ol>`
+          : `<p class="publication-empty">${escapeHtml(emptyMessage)}</p>`
+      }
+    </section>
+  `;
+}
+
 function haversineMiles(lat1, lon1, lat2, lon2) {
   const earthRadiusMiles = 3958.7613;
   const toRadians = (degrees) => (degrees * Math.PI) / 180;
@@ -362,13 +448,27 @@ function markerIcon(bookCount = 0) {
 
 function popupHtml(library) {
   const csn = libraryCsn(library);
+  const locationLabel = libraryLocationLabel(library);
+  const icon = library.icon_url || "";
   return `
     <article class="popup">
-      <strong>${escapeHtml(csn)} · ${escapeHtml(library.name)}</strong>
-      <p><b>${escapeHtml(csn)}:</b> ${escapeHtml(library.description || "No description saved.")}</p>
-      <small>${Number(library.book_count || 0)} books at ${formatCoordinate(library.latitude)}, ${formatCoordinate(library.longitude)}</small>
+      <div class="popup-head">
+        ${icon ? `<img class="popup-icon" src="${escapeHtml(icon)}" alt="${escapeHtml(library.name)} icon" />` : ""}
+        <div>
+          <strong>${escapeHtml(csn)} · ${escapeHtml(library.name)}</strong>
+          <p>${escapeHtml(library.description || "No description saved.")}</p>
+          <small>${formatCount(library.book_count, "book")} · ${escapeHtml(locationLabel)}</small>
+        </div>
+      </div>
     </article>
   `;
+}
+
+function fitMapToMarkers() {
+  if (state.map && state.markerBounds) {
+    state.map.invalidateSize();
+    state.map.fitBounds(state.markerBounds, { padding: [46, 46], maxZoom: 13 });
+  }
 }
 
 function renderMap(libraries) {
@@ -385,14 +485,20 @@ function renderMap(libraries) {
     const position = [Number(library.latitude), Number(library.longitude)];
     const marker = L.marker(position, { icon: markerIcon(library.book_count) })
       .addTo(state.map)
-      .bindPopup(popupHtml(library), { maxWidth: 300 });
+      .bindPopup(popupHtml(library), {
+        className: "library-popup",
+        minWidth: 280,
+        maxWidth: 320,
+      });
     state.markers.set(library.id, marker);
     coordinates.push(position);
   });
 
   if (coordinates.length) {
     state.markerBounds = L.latLngBounds(coordinates);
-    state.map.fitBounds(state.markerBounds, { padding: [46, 46], maxZoom: 13 });
+    fitMapToMarkers();
+    requestAnimationFrame(fitMapToMarkers);
+    setTimeout(fitMapToMarkers, 250);
     elements.mapStatus.textContent = `${coordinates.length} mapped libraries. Scroll, pinch, or double-click to zoom.`;
   } else {
     elements.mapStatus.textContent = "No geolocated libraries in this snapshot.";
@@ -413,6 +519,7 @@ function renderDatabaseSummary() {
   const books = Array.isArray(state.data?.books) ? state.data.books : [];
   const libraries = Array.isArray(state.data?.libraries) ? state.data.libraries : [];
   const genreSummary = buildGenreSummary(books);
+  const publicationHighlights = buildPublicationHighlights(books);
 
   if (!elements.databaseSummary) {
     return;
@@ -429,6 +536,20 @@ function renderDatabaseSummary() {
     <div class="card-meta">
       <span>${formatCount(libraries.length, "library", "libraries")}</span>
       <span>${formatCount(genreSummary.length, "top genre")}</span>
+    </div>
+    <div class="publication-grid" aria-label="Publication-date highlights">
+      ${renderPublicationList(
+        "Hot off the Press",
+        "Newest books with publication years in this snapshot.",
+        publicationHighlights.newest,
+        "No publication years are available yet for newest-book highlights."
+      )}
+      ${renderPublicationList(
+        "Dust-bound Wisdom",
+        "Oldest books with publication years in this snapshot.",
+        publicationHighlights.oldest,
+        "No publication years are available yet for oldest-book highlights."
+      )}
     </div>
     <div class="genre-chips" aria-label="Top genres across the database">${renderGenreChips(genreSummary)}</div>
     ${renderGenreSummary(genreSummary, "Top 5 genres, top 5 books")}
@@ -563,9 +684,7 @@ elements.quickSearches.forEach((button) => {
 });
 
 elements.fitMarkers.addEventListener("click", () => {
-  if (state.map && state.markerBounds) {
-    state.map.fitBounds(state.markerBounds, { padding: [46, 46], maxZoom: 13 });
-  }
+  fitMapToMarkers();
 });
 
 loadData().catch((error) => {

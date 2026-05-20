@@ -68,33 +68,22 @@ def copy_photo(image_path: Path) -> str:
     return relative_upload_path(destination)
 
 
-def build_payload(image_path: Path, metadata: dict[str, Any], photo_path: str, allow_missing_location: bool) -> dict[str, Any]:
+def build_payload(image_path: Path, metadata: dict[str, Any], photo_path: str) -> dict[str, Any]:
     image_bytes = image_path.read_bytes()
     location = app.extract_exif_gps(image_bytes)
 
-    if location is None and not allow_missing_location:
+    if location is None:
         raise ValueError(
-            "No valid EXIF GPS coordinates were found. Pass --allow-missing-location to ingest without coordinates."
+            "Rejected: no valid EXIF GPS coordinates were found. Upload the original GPS-tagged photo."
         )
-
-    geolocation = (
-        location.to_dict()
-        if location
-        else {
-            "latitude": None,
-            "longitude": None,
-            "source": "unavailable",
-            "confidence": 0.0,
-            "accuracy_meters": None,
-        }
-    )
 
     return {
         "library_name": metadata.get("library_name") or image_path.stem,
         "library_description": metadata.get("library_description") or "",
         "photo_path": photo_path,
+        "icon_source_photo_path": photo_path,
         "place_clues": metadata.get("place_clues") or [],
-        "geolocation": geolocation,
+        "geolocation": location.to_dict(),
         "books": metadata["books"],
     }
 
@@ -128,7 +117,7 @@ def ingest(args: argparse.Namespace) -> dict[str, Any]:
         latitude = existing["latitude"]
         longitude = existing["longitude"]
     else:
-        payload = build_payload(image_path, metadata, photo_path, args.allow_missing_location)
+        payload = build_payload(image_path, metadata, photo_path)
         library_id = app.insert_library(payload)
         inserted = True
         latitude = payload["geolocation"]["latitude"]
@@ -175,11 +164,6 @@ def parse_args() -> argparse.Namespace:
         type=float,
         default=25.0,
         help="Search radius used for the verification query.",
-    )
-    parser.add_argument(
-        "--allow-missing-location",
-        action="store_true",
-        help="Allow ingesting a photo that has no valid EXIF GPS.",
     )
     return parser.parse_args()
 
