@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="675" viewBox="0 0 1200 675" role="img" aria-labelledby="title desc">
   <title id="title">Civitas Library map</title>
-  <desc id="desc">Map of 28 geolocated mini libraries with numbered markers, Civitas Library Serial Numbers, descriptions, and book counts.</desc>
+  <desc id="desc">Map of 33 geolocated mini libraries with numbered markers, Civitas Library Serial Numbers, descriptions, and book counts.</desc>
   <defs>
     <linearGradient id="paper" x1="0" x2="1" y1="0" y2="1">
       <stop offset="0" stop-color="#fff7e8"/>
@@ -21,7 +21,7 @@
   <rect width="1200" height="675" rx="34" fill="#263529"/>
   <rect x="18" y="18" width="1164" height="639" rx="30" fill="url(#paper)"/>
   <text x="48" y="68" fill="#1f2d24" font-family="Georgia, serif" font-size="39" font-weight="700">Civitas Library</text>
-  <text x="50" y="99" class="small" font-size="18">Generated map snapshot: 28 libraries, 305 books, CSN = database serial ID, centered near 40.0634, -77.0904</text>
+  <text x="50" y="99" class="small" font-size="18">Generated map snapshot: 33 libraries, 346 books, CSN = database serial ID, centered near 41.1738, -76.2143</text>
 
   <g>
     <rect x="48" y="126" width="752" height="484" rx="28" fill="url(#park)" stroke="#253529" stroke-width="4"/>
@@ -32,192 +32,222 @@
     <circle cx="210" cy="318" r="92" fill="rgba(92, 123, 95, 0.18)"/>
     <circle cx="620" cy="402" r="112" fill="rgba(92, 123, 95, 0.15)"/>
     <line x1="147.53" y1="126" x2="147.53" y2="610" class="grid"/>
-    <text x="153.53" y="600" class="grid-label">-83.825</text>
+    <text x="153.53" y="600" class="grid-label">-122.442</text>
     <line x1="285.76" y1="126" x2="285.76" y2="610" class="grid"/>
-    <text x="291.76" y="600" class="grid-label">-80.695</text>
+    <text x="291.76" y="600" class="grid-label">-92.637</text>
     <line x1="424.00" y1="126" x2="424.00" y2="610" class="grid"/>
-    <text x="430.00" y="600" class="grid-label">-77.564</text>
+    <text x="430.00" y="600" class="grid-label">-62.833</text>
     <line x1="562.24" y1="126" x2="562.24" y2="610" class="grid"/>
-    <text x="568.24" y="600" class="grid-label">-74.433</text>
+    <text x="568.24" y="600" class="grid-label">-33.028</text>
     <line x1="700.47" y1="126" x2="700.47" y2="610" class="grid"/>
-    <text x="706.47" y="600" class="grid-label">-71.303</text>
+    <text x="706.47" y="600" class="grid-label">-3.223</text>
     <line x1="48" y1="545.94" x2="800" y2="545.94" class="grid"/>
     <text x="58" y="537.94" class="grid-label">34.311</text>
-    <line x1="48" y1="462.14" x2="800" y2="462.14" class="grid"/>
-    <text x="58" y="454.14" class="grid-label">37.084</text>
-    <line x1="48" y1="375.21" x2="800" y2="375.21" class="grid"/>
-    <text x="58" y="367.21" class="grid-label">39.856</text>
-    <line x1="48" y1="284.70" x2="800" y2="284.70" class="grid"/>
-    <text x="58" y="276.70" class="grid-label">42.628</text>
+    <line x1="48" y1="468.70" x2="800" y2="468.70" class="grid"/>
+    <text x="58" y="460.70" class="grid-label">39.718</text>
+    <line x1="48" y1="385.12" x2="800" y2="385.12" class="grid"/>
+    <text x="58" y="377.12" class="grid-label">45.125</text>
+    <line x1="48" y1="293.21" x2="800" y2="293.21" class="grid"/>
+    <text x="58" y="285.21" class="grid-label">50.533</text>
     <line x1="48" y1="190.06" x2="800" y2="190.06" class="grid"/>
-    <text x="58" y="182.06" class="grid-label">45.400</text>
-    <g class="marker" transform="translate(489.24 385.30)">
+    <text x="58" y="182.06" class="grid-label">55.940</text>
+    <g class="marker" transform="translate(362.53 471.35)">
       <title>CSN-1 - Blue Little Library: 13 books. A bright blue sidewalk little library with a mixed shelf of travel guides, history, fiction, h...</title>
       <path d="M0 -29c-18 0-32 14-32 32 0 25 32 58 32 58S32 28 32 3C32 -15 18 -29 0 -29z" fill="#c94f3d" stroke="#213226" stroke-width="4"/>
       <circle cx="0" cy="2" r="18" fill="#fffaf0"/>
       <text x="0" y="9" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" font-weight="800" fill="#213226">1</text>
     </g>
-    <g class="marker" transform="translate(447.27 400.57)">
+    <g class="marker" transform="translate(358.12 478.43)">
       <title>CSN-2 - Red and Yellow Garden Little Free Library: 8 books. A red-and-yellow Little Free Library beside a garden path, with plant-label shingles on the ro...</title>
       <path d="M0 -29c-18 0-32 14-32 32 0 25 32 58 32 58S32 28 32 3C32 -15 18 -29 0 -29z" fill="#e2a236" stroke="#213226" stroke-width="4"/>
       <circle cx="0" cy="2" r="18" fill="#fffaf0"/>
       <text x="0" y="9" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" font-weight="800" fill="#213226">2</text>
     </g>
-    <g class="marker" transform="translate(447.36 400.54)">
+    <g class="marker" transform="translate(358.13 478.42)">
       <title>CSN-3 - Blue Greenhouse Little Free Library: 2 books. A hand-painted blue Little Free Library inside a greenhouse, surrounded by tropical plants and...</title>
       <path d="M0 -29c-18 0-32 14-32 32 0 25 32 58 32 58S32 28 32 3C32 -15 18 -29 0 -29z" fill="#477c66" stroke="#213226" stroke-width="4"/>
       <circle cx="0" cy="2" r="18" fill="#fffaf0"/>
       <text x="0" y="9" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" font-weight="800" fill="#213226">3</text>
     </g>
-    <g class="marker" transform="translate(442.99 406.24)">
+    <g class="marker" transform="translate(357.67 481.07)">
       <title>CSN-4 - White Garden Little Free Library: 15 books. A white Little Free Library on a black post in a residential front garden, with a porch, lamp ...</title>
       <path d="M0 -29c-18 0-32 14-32 32 0 25 32 58 32 58S32 28 32 3C32 -15 18 -29 0 -29z" fill="#416c9f" stroke="#213226" stroke-width="4"/>
       <circle cx="0" cy="2" r="18" fill="#fffaf0"/>
       <text x="0" y="9" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" font-weight="800" fill="#213226">4</text>
     </g>
-    <g class="marker" transform="translate(443.00 406.29)">
+    <g class="marker" transform="translate(357.67 481.09)">
       <title>CSN-5 - Gray Floral Park Little Free Library: 7 books. A gray Little Free Library with painted purple and pink flowers, mounted on a wooden post besi...</title>
       <path d="M0 -29c-18 0-32 14-32 32 0 25 32 58 32 58S32 28 32 3C32 -15 18 -29 0 -29z" fill="#8c5b92" stroke="#213226" stroke-width="4"/>
       <circle cx="0" cy="2" r="18" fill="#fffaf0"/>
       <text x="0" y="9" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" font-weight="800" fill="#213226">5</text>
     </g>
-    <g class="marker" transform="translate(444.48 402.26)">
+    <g class="marker" transform="translate(357.83 479.22)">
       <title>CSN-6 - Indoor Take-a-Book Rack: 8 books. An indoor take-a-book, leave-a-book rack with wire shelves, posted against a wall with a large...</title>
       <path d="M0 -29c-18 0-32 14-32 32 0 25 32 58 32 58S32 28 32 3C32 -15 18 -29 0 -29z" fill="#7a633c" stroke="#213226" stroke-width="4"/>
       <circle cx="0" cy="2" r="18" fill="#fffaf0"/>
       <text x="0" y="9" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" font-weight="800" fill="#213226">6</text>
     </g>
-    <g class="marker" transform="translate(433.93 392.04)">
+    <g class="marker" transform="translate(356.72 474.47)">
       <title>CSN-7 - Blue Parking Lot Little Library: 23 books. A bright blue double-door little library on a white post near grass, parked cars, and a sidewa...</title>
       <path d="M0 -29c-18 0-32 14-32 32 0 25 32 58 32 58S32 28 32 3C32 -15 18 -29 0 -29z" fill="#d66a72" stroke="#213226" stroke-width="4"/>
       <circle cx="0" cy="2" r="18" fill="#fffaf0"/>
       <text x="0" y="9" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" font-weight="800" fill="#213226">7</text>
     </g>
-    <g class="marker" transform="translate(429.94 389.12)">
+    <g class="marker" transform="translate(356.30 473.12)">
       <title>CSN-8 - Red Blue Driveway Little Free Library: 32 books. Red-front, blue-sided Little Free Library by a driveway under a large tree. Staged from May 17...</title>
       <path d="M0 -29c-18 0-32 14-32 32 0 25 32 58 32 58S32 28 32 3C32 -15 18 -29 0 -29z" fill="#2f757f" stroke="#213226" stroke-width="4"/>
       <circle cx="0" cy="2" r="18" fill="#fffaf0"/>
       <text x="0" y="9" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" font-weight="800" fill="#213226">8</text>
     </g>
-    <g class="marker" transform="translate(430.36 389.27)">
+    <g class="marker" transform="translate(356.34 473.19)">
       <title>CSN-9 - Panda Roof Civic Little Free Library: 9 books. White panda-painted mini library with blue roof stripes near a red-brick civic or church-like ...</title>
       <path d="M0 -29c-18 0-32 14-32 32 0 25 32 58 32 58S32 28 32 3C32 -15 18 -29 0 -29z" fill="#c94f3d" stroke="#213226" stroke-width="4"/>
       <circle cx="0" cy="2" r="18" fill="#fffaf0"/>
       <text x="0" y="9" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" font-weight="800" fill="#213226">9</text>
     </g>
-    <g class="marker" transform="translate(430.45 389.26)">
+    <g class="marker" transform="translate(356.35 473.18)">
       <title>CSN-10 - Carroll Parkway Tree Little Free Library: 17 books. Shingle-roof wooden Little Free Library mounted beside a large tree and brick house.</title>
       <path d="M0 -29c-18 0-32 14-32 32 0 25 32 58 32 58S32 28 32 3C32 -15 18 -29 0 -29z" fill="#e2a236" stroke="#213226" stroke-width="4"/>
       <circle cx="0" cy="2" r="18" fill="#fffaf0"/>
       <text x="0" y="9" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" font-weight="800" fill="#213226">10</text>
     </g>
-    <g class="marker" transform="translate(430.31 389.54)">
+    <g class="marker" transform="translate(356.34 473.32)">
       <title>CSN-11 - Emily Roy Weathered Green Little Free Library: 35 books. Weathered pale-green and wood Little Free Library beside a driveway and leafy tree.</title>
       <path d="M0 -29c-18 0-32 14-32 32 0 25 32 58 32 58S32 28 32 3C32 -15 18 -29 0 -29z" fill="#477c66" stroke="#213226" stroke-width="4"/>
       <circle cx="0" cy="2" r="18" fill="#fffaf0"/>
       <text x="0" y="9" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" font-weight="800" fill="#213226">11</text>
     </g>
-    <g class="marker" transform="translate(429.97 389.34)">
+    <g class="marker" transform="translate(356.30 473.22)">
       <title>CSN-12 - Blue White Neighbor Sign Little Free Library: 17 books. Blue-and-white Little Free Library in a front-yard garden under a leafy tree, near a Class of ...</title>
       <path d="M0 -29c-18 0-32 14-32 32 0 25 32 58 32 58S32 28 32 3C32 -15 18 -29 0 -29z" fill="#416c9f" stroke="#213226" stroke-width="4"/>
       <circle cx="0" cy="2" r="18" fill="#fffaf0"/>
       <text x="0" y="9" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" font-weight="800" fill="#213226">12</text>
     </g>
-    <g class="marker" transform="translate(430.52 389.45)">
+    <g class="marker" transform="translate(356.36 473.27)">
       <title>CSN-13 - Boys and Girls Club Little Free Library: 20 books. Blue and yellow Little Free Library in front of Boys &amp; Girls Club of Frederick County.</title>
       <path d="M0 -29c-18 0-32 14-32 32 0 25 32 58 32 58S32 28 32 3C32 -15 18 -29 0 -29z" fill="#8c5b92" stroke="#213226" stroke-width="4"/>
       <circle cx="0" cy="2" r="18" fill="#fffaf0"/>
       <text x="0" y="9" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" font-weight="800" fill="#213226">13</text>
     </g>
-    <g class="marker" transform="translate(430.87 389.55)">
+    <g class="marker" transform="translate(356.40 473.32)">
       <title>CSN-14 - Blue Courtyard Little Free Library: 15 books. Blue Little Free Library on a black post in a grassy courtyard beside red-brick buildings.</title>
       <path d="M0 -29c-18 0-32 14-32 32 0 25 32 58 32 58S32 28 32 3C32 -15 18 -29 0 -29z" fill="#7a633c" stroke="#213226" stroke-width="4"/>
       <circle cx="0" cy="2" r="18" fill="#fffaf0"/>
       <text x="0" y="9" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" font-weight="800" fill="#213226">14</text>
     </g>
-    <g class="marker" transform="translate(430.74 389.40)">
+    <g class="marker" transform="translate(356.38 473.25)">
       <title>CSN-15 - Mint Green Sidewalk Little Library: 4 books. Mint-green handmade sidewalk mini library with flower trim and pebble chimney near a rowhouse ...</title>
       <path d="M0 -29c-18 0-32 14-32 32 0 25 32 58 32 58S32 28 32 3C32 -15 18 -29 0 -29z" fill="#d66a72" stroke="#213226" stroke-width="4"/>
       <circle cx="0" cy="2" r="18" fill="#fffaf0"/>
       <text x="0" y="9" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" font-weight="800" fill="#213226">15</text>
     </g>
-    <g class="marker" transform="translate(430.61 389.35)">
+    <g class="marker" transform="translate(356.37 473.23)">
       <title>CSN-16 - Green Purple Rowhouse Little Free Library: 20 books. Green and purple Little Free Library on a brick sidewalk among rowhouses and purple planters.</title>
       <path d="M0 -29c-18 0-32 14-32 32 0 25 32 58 32 58S32 28 32 3C32 -15 18 -29 0 -29z" fill="#2f757f" stroke="#213226" stroke-width="4"/>
       <circle cx="0" cy="2" r="18" fill="#fffaf0"/>
       <text x="0" y="9" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" font-weight="800" fill="#213226">16</text>
     </g>
-    <g class="marker" transform="translate(430.57 389.39)">
+    <g class="marker" transform="translate(356.36 473.24)">
       <title>CSN-17 - New Wooden Rowhouse Little Free Library: 13 books. New natural-wood Little Free Library by a rowhouse stoop near house number 214.</title>
       <path d="M0 -29c-18 0-32 14-32 32 0 25 32 58 32 58S32 28 32 3C32 -15 18 -29 0 -29z" fill="#c94f3d" stroke="#213226" stroke-width="4"/>
       <circle cx="0" cy="2" r="18" fill="#fffaf0"/>
       <text x="0" y="9" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" font-weight="800" fill="#213226">17</text>
     </g>
-    <g class="marker" transform="translate(436.46 404.44)">
+    <g class="marker" transform="translate(356.98 480.23)">
       <title>CSN-18 - Red Woods Trail Empty Little Library: 0 books. Large red double-door Little Free Library in a wooded trail setting. The current upload shows ...</title>
       <path d="M0 -29c-18 0-32 14-32 32 0 25 32 58 32 58S32 28 32 3C32 -15 18 -29 0 -29z" fill="#e2a236" stroke="#213226" stroke-width="4"/>
       <circle cx="0" cy="2" r="18" fill="#fffaf0"/>
       <text x="0" y="9" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" font-weight="800" fill="#213226">18</text>
     </g>
-    <g class="marker" transform="translate(430.58 389.41)">
+    <g class="marker" transform="translate(356.37 473.25)">
       <title>CSN-19 - Downtown Frederick Purple Porch Little Free Library: 20 books. Purple Little Free Library on a porch-side sidewalk in downtown Frederick, near rowhouses and ...</title>
       <path d="M0 -29c-18 0-32 14-32 32 0 25 32 58 32 58S32 28 32 3C32 -15 18 -29 0 -29z" fill="#477c66" stroke="#213226" stroke-width="4"/>
       <circle cx="0" cy="2" r="18" fill="#fffaf0"/>
       <text x="0" y="9" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" font-weight="800" fill="#213226">19</text>
     </g>
-    <g class="marker" transform="translate(700.47 323.03)">
+    <g class="marker" transform="translate(384.71 442.43)">
       <title>CSN-20 - Green Stone Wall Library: 1 books. Green Little Free Library set into shrubs beside a stone wall. The uploaded photo is primarily...</title>
       <path d="M0 -29c-18 0-32 14-32 32 0 25 32 58 32 58S32 28 32 3C32 -15 18 -29 0 -29z" fill="#416c9f" stroke="#213226" stroke-width="4"/>
       <circle cx="0" cy="2" r="18" fill="#fffaf0"/>
       <text x="0" y="9" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" font-weight="800" fill="#213226">20</text>
     </g>
-    <g class="marker" transform="translate(424.74 388.34)">
+    <g class="marker" transform="translate(355.75 472.76)">
       <title>CSN-22 - Twin Blue Garden Libraries: 1 books. Two white-and-light-blue Little Free Library boxes standing together in a landscaped garden ne...</title>
       <path d="M0 -29c-18 0-32 14-32 32 0 25 32 58 32 58S32 28 32 3C32 -15 18 -29 0 -29z" fill="#8c5b92" stroke="#213226" stroke-width="4"/>
       <circle cx="0" cy="2" r="18" fill="#fffaf0"/>
       <text x="0" y="9" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" font-weight="800" fill="#213226">21</text>
     </g>
-    <g class="marker" transform="translate(434.02 391.43)">
+    <g class="marker" transform="translate(356.73 474.19)">
       <title>CSN-23 - Red Field Library: 6 books. Red-and-white Little Free Library in an open field or park-like setting, photographed with the...</title>
       <path d="M0 -29c-18 0-32 14-32 32 0 25 32 58 32 58S32 28 32 3C32 -15 18 -29 0 -29z" fill="#7a633c" stroke="#213226" stroke-width="4"/>
       <circle cx="0" cy="2" r="18" fill="#fffaf0"/>
       <text x="0" y="9" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" font-weight="800" fill="#213226">22</text>
     </g>
-    <g class="marker" transform="translate(413.41 388.74)">
+    <g class="marker" transform="translate(354.56 472.94)">
       <title>CSN-24 - Halloween Stone House Library: 0 books. Wooden mini library beside a small stone house display decorated for Halloween, with benches n...</title>
       <path d="M0 -29c-18 0-32 14-32 32 0 25 32 58 32 58S32 28 32 3C32 -15 18 -29 0 -29z" fill="#d66a72" stroke="#213226" stroke-width="4"/>
       <circle cx="0" cy="2" r="18" fill="#fffaf0"/>
       <text x="0" y="9" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" font-weight="800" fill="#213226">23</text>
     </g>
-    <g class="marker" transform="translate(147.53 545.94)">
+    <g class="marker" transform="translate(326.63 545.94)">
       <title>CSN-25 - Gainesville Phoenix Red Library: 0 books. Red community little library with a GFWC Gainesville Phoenix Women&#x27;s Club sign. The GPS-tagged...</title>
       <path d="M0 -29c-18 0-32 14-32 32 0 25 32 58 32 58S32 28 32 3C32 -15 18 -29 0 -29z" fill="#2f757f" stroke="#213226" stroke-width="4"/>
       <circle cx="0" cy="2" r="18" fill="#fffaf0"/>
       <text x="0" y="9" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" font-weight="800" fill="#213226">24</text>
     </g>
-    <g class="marker" transform="translate(504.49 190.80)">
+    <g class="marker" transform="translate(364.13 381.03)">
       <title>CSN-26 - Pink Snow Charter 127298 Library: 3 books. Pink Little Free Library photographed in snow with charter number 127298 and a handwritten doo...</title>
       <path d="M0 -29c-18 0-32 14-32 32 0 25 32 58 32 58S32 28 32 3C32 -15 18 -29 0 -29z" fill="#c94f3d" stroke="#213226" stroke-width="4"/>
       <circle cx="0" cy="2" r="18" fill="#fffaf0"/>
       <text x="0" y="9" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" font-weight="800" fill="#213226">25</text>
     </g>
-    <g class="marker" transform="translate(506.70 190.09)">
+    <g class="marker" transform="translate(364.36 380.70)">
       <title>CSN-27 - Blue Orange Snow Charter 62790 Library: 4 books. Blue-and-orange Little Free Library photographed in snow with charter number 62790.</title>
       <path d="M0 -29c-18 0-32 14-32 32 0 25 32 58 32 58S32 28 32 3C32 -15 18 -29 0 -29z" fill="#e2a236" stroke="#213226" stroke-width="4"/>
       <circle cx="0" cy="2" r="18" fill="#fffaf0"/>
       <text x="0" y="9" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" font-weight="800" fill="#213226">26</text>
     </g>
-    <g class="marker" transform="translate(506.81 190.06)">
+    <g class="marker" transform="translate(364.37 380.68)">
       <title>CSN-28 - Gray Snow Neighborhood Library: 4 books. Gray Little Free Library photographed in snow near brick houses, with mixed fiction and nonfic...</title>
       <path d="M0 -29c-18 0-32 14-32 32 0 25 32 58 32 58S32 28 32 3C32 -15 18 -29 0 -29z" fill="#477c66" stroke="#213226" stroke-width="4"/>
       <circle cx="0" cy="2" r="18" fill="#fffaf0"/>
       <text x="0" y="9" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" font-weight="800" fill="#213226">27</text>
     </g>
-    <g class="marker" transform="translate(499.85 190.27)">
+    <g class="marker" transform="translate(363.64 380.78)">
       <title>CSN-29 - Red Yellow Porch Little Library: 8 books. Bright red little library with a yellow window frame on a porch or deck, with mixed history, c...</title>
       <path d="M0 -29c-18 0-32 14-32 32 0 25 32 58 32 58S32 28 32 3C32 -15 18 -29 0 -29z" fill="#416c9f" stroke="#213226" stroke-width="4"/>
       <circle cx="0" cy="2" r="18" fill="#fffaf0"/>
       <text x="0" y="9" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" font-weight="800" fill="#213226">28</text>
+    </g>
+    <g class="marker" transform="translate(147.53 351.05)">
+      <title>CSN-30 - Red Tacoma Book Return Library: 10 books. Red metal book-return style little library with a black interior shelf and mixed adult fiction...</title>
+      <path d="M0 -29c-18 0-32 14-32 32 0 25 32 58 32 58S32 28 32 3C32 -15 18 -29 0 -29z" fill="#8c5b92" stroke="#213226" stroke-width="4"/>
+      <circle cx="0" cy="2" r="18" fill="#fffaf0"/>
+      <text x="0" y="9" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" font-weight="800" fill="#213226">29</text>
+    </g>
+    <g class="marker" transform="translate(345.40 413.51)">
+      <title>CSN-31 - White Porch Charter 49124 Library: 5 books. White Little Free Library with black roof and a front window, photographed from the sidewalk w...</title>
+      <path d="M0 -29c-18 0-32 14-32 32 0 25 32 58 32 58S32 28 32 3C32 -15 18 -29 0 -29z" fill="#7a633c" stroke="#213226" stroke-width="4"/>
+      <circle cx="0" cy="2" r="18" fill="#fffaf0"/>
+      <text x="0" y="9" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" font-weight="800" fill="#213226">30</text>
+    </g>
+    <g class="marker" transform="translate(365.92 385.68)">
+      <title>CSN-32 - Wooden Charter 21131 Library: 7 books. Wooden Little Free Library with a shingled roof and a charter sign above the window, holding a...</title>
+      <path d="M0 -29c-18 0-32 14-32 32 0 25 32 58 32 58S32 28 32 3C32 -15 18 -29 0 -29z" fill="#d66a72" stroke="#213226" stroke-width="4"/>
+      <circle cx="0" cy="2" r="18" fill="#fffaf0"/>
+      <text x="0" y="9" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" font-weight="800" fill="#213226">31</text>
+    </g>
+    <g class="marker" transform="translate(364.13 380.80)">
+      <title>CSN-33 - Red Book Exchange and Kiddie Corner: 6 books. A pair of red outdoor book-exchange boxes, one labeled The Book Exchange and a smaller one lab...</title>
+      <path d="M0 -29c-18 0-32 14-32 32 0 25 32 58 32 58S32 28 32 3C32 -15 18 -29 0 -29z" fill="#2f757f" stroke="#213226" stroke-width="4"/>
+      <circle cx="0" cy="2" r="18" fill="#fffaf0"/>
+      <text x="0" y="9" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" font-weight="800" fill="#213226">32</text>
+    </g>
+    <g class="marker" transform="translate(700.47 190.06)">
+      <title>CSN-34 - Dalry Cemetery Friends Library: 13 books. Wooden community bookcase near a Friends of Dalry Cemetery sign, with fiction, crime, and cour...</title>
+      <path d="M0 -29c-18 0-32 14-32 32 0 25 32 58 32 58S32 28 32 3C32 -15 18 -29 0 -29z" fill="#c94f3d" stroke="#213226" stroke-width="4"/>
+      <circle cx="0" cy="2" r="18" fill="#fffaf0"/>
+      <text x="0" y="9" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" font-weight="800" fill="#213226">33</text>
     </g>
     <text x="72" y="162" font-family="Arial, sans-serif" font-size="17" font-weight="800" fill="#263529">Geolocated library markers</text>
     <text x="72" y="588" class="small" font-size="14">SVG uses Web Mercator projection and local database coordinates.</text>
@@ -422,7 +452,42 @@
       <text x="32" y="8" font-family="Arial, sans-serif" font-size="15" fill="#536158">8 books at 45.3938, -75.8463</text>
       <text x="32" y="30" font-family="Arial, sans-serif" font-size="13" fill="#7a8079">Bright red little library with a yellow window frame on a porch or deck, with mixed history, cooking, and ...</text>
     </g>
+    <g transform="translate(832 2070)">
+      <circle cx="0" cy="-8" r="18" fill="#8c5b92" stroke="#213226" stroke-width="3"/>
+      <text x="0" y="-1" text-anchor="middle" font-family="Arial, sans-serif" font-size="17" font-weight="800" fill="#fffaf0">29</text>
+      <text x="32" y="-16" font-family="Arial, sans-serif" font-size="19" font-weight="800" fill="#1f2d24">CSN-30 - Red Tacoma Book Return Library</text>
+      <text x="32" y="8" font-family="Arial, sans-serif" font-size="15" fill="#536158">10 books at 47.1957, -122.4420</text>
+      <text x="32" y="30" font-family="Arial, sans-serif" font-size="13" fill="#7a8079">Red metal book-return style little library with a black interior shelf and mixed adult fiction and non-fic...</text>
+    </g>
+    <g transform="translate(832 2138)">
+      <circle cx="0" cy="-8" r="18" fill="#7a633c" stroke="#213226" stroke-width="3"/>
+      <text x="0" y="-1" text-anchor="middle" font-family="Arial, sans-serif" font-size="17" font-weight="800" fill="#fffaf0">30</text>
+      <text x="32" y="-16" font-family="Arial, sans-serif" font-size="19" font-weight="800" fill="#1f2d24">CSN-31 - White Porch Charter 49124 Library</text>
+      <text x="32" y="8" font-family="Arial, sans-serif" font-size="15" fill="#536158">5 books at 404 Rosslyn Dr., Burlington, ON L7N 1S6, Canada</text>
+      <text x="32" y="30" font-family="Arial, sans-serif" font-size="13" fill="#7a8079">White Little Free Library with black roof and a front window, photographed from the sidewalk with two shel...</text>
+    </g>
+    <g transform="translate(832 2206)">
+      <circle cx="0" cy="-8" r="18" fill="#d66a72" stroke="#213226" stroke-width="3"/>
+      <text x="0" y="-1" text-anchor="middle" font-family="Arial, sans-serif" font-size="17" font-weight="800" fill="#fffaf0">31</text>
+      <text x="32" y="-16" font-family="Arial, sans-serif" font-size="19" font-weight="800" fill="#1f2d24">CSN-32 - Wooden Charter 21131 Library</text>
+      <text x="32" y="8" font-family="Arial, sans-serif" font-size="15" fill="#536158">7 books at 520 Church St., Winchester, ON k0c 2k0, Canada</text>
+      <text x="32" y="30" font-family="Arial, sans-serif" font-size="13" fill="#7a8079">Wooden Little Free Library with a shingled roof and a charter sign above the window, holding a mix of thri...</text>
+    </g>
+    <g transform="translate(832 2274)">
+      <circle cx="0" cy="-8" r="18" fill="#2f757f" stroke="#213226" stroke-width="3"/>
+      <text x="0" y="-1" text-anchor="middle" font-family="Arial, sans-serif" font-size="17" font-weight="800" fill="#fffaf0">32</text>
+      <text x="32" y="-16" font-family="Arial, sans-serif" font-size="19" font-weight="800" fill="#1f2d24">CSN-33 - Red Book Exchange and Kiddie Corner</text>
+      <text x="32" y="8" font-family="Arial, sans-serif" font-size="15" fill="#536158">6 books at 45.3926, -75.7405</text>
+      <text x="32" y="30" font-family="Arial, sans-serif" font-size="13" fill="#7a8079">A pair of red outdoor book-exchange boxes, one labeled The Book Exchange and a smaller one labeled Kiddie ...</text>
+    </g>
+    <g transform="translate(832 2342)">
+      <circle cx="0" cy="-8" r="18" fill="#c94f3d" stroke="#213226" stroke-width="3"/>
+      <text x="0" y="-1" text-anchor="middle" font-family="Arial, sans-serif" font-size="17" font-weight="800" fill="#fffaf0">33</text>
+      <text x="32" y="-16" font-family="Arial, sans-serif" font-size="19" font-weight="800" fill="#1f2d24">CSN-34 - Dalry Cemetery Friends Library</text>
+      <text x="32" y="8" font-family="Arial, sans-serif" font-size="15" fill="#536158">13 books at 55.9396, -3.2232</text>
+      <text x="32" y="30" font-family="Arial, sans-serif" font-size="13" fill="#7a8079">Wooden community bookcase near a Friends of Dalry Cemetery sign, with fiction, crime, and course books vis...</text>
+    </g>
   </g>
 
-  <text x="48" y="644" class="small" font-size="14">Updated 2026-05-19 13:47 UTC by scripts/render_library_map.py. Photo uploads and SQLite data stay out of Git.</text>
+  <text x="48" y="644" class="small" font-size="14">Updated 2026-05-20 02:28 UTC by scripts/render_library_map.py. Photo uploads and SQLite data stay out of Git.</text>
 </svg>
