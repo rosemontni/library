@@ -32,6 +32,7 @@ MAP_OUTPUT_PATH = Path(os.getenv("LIBRARY_MAP_PATH", str(BASE_DIR / "assets" / "
 PAGES_DATA_PATH = Path(os.getenv("LIBRARY_PAGES_DATA_PATH", str(BASE_DIR / "docs" / "atlas-data.json")))
 LIBRARY_ICONS_DIR = Path(os.getenv("LIBRARY_ICONS_DIR", str(BASE_DIR / "docs" / "library-icons")))
 LIBRARY_ICON_SIZE = 144
+DATABASE_SCHEMA_VERSION = 2
 
 HOST = os.getenv("HOST", "127.0.0.1")
 PORT = int(os.getenv("PORT", "8000"))
@@ -200,6 +201,41 @@ def ensure_column(connection: sqlite3.Connection, table: str, column: str, defin
         connection.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
 
 
+def ensure_schema_version(connection: sqlite3.Connection) -> None:
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS schema_migrations (
+            id INTEGER PRIMARY KEY CHECK (id = 1),
+            version INTEGER NOT NULL,
+            applied_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    )
+    row = connection.execute("SELECT version FROM schema_migrations WHERE id = 1").fetchone()
+    if row is None:
+        connection.execute(
+            "INSERT INTO schema_migrations (id, version) VALUES (1, ?)",
+            (DATABASE_SCHEMA_VERSION,),
+        )
+        return
+
+    current_version = int(row["version"])
+    if current_version > DATABASE_SCHEMA_VERSION:
+        raise RuntimeError(
+            f"Database schema version {current_version} is newer than this app supports "
+            f"({DATABASE_SCHEMA_VERSION})."
+        )
+    if current_version < DATABASE_SCHEMA_VERSION:
+        connection.execute(
+            """
+            UPDATE schema_migrations
+            SET version = ?, applied_at = CURRENT_TIMESTAMP
+            WHERE id = 1
+            """,
+            (DATABASE_SCHEMA_VERSION,),
+        )
+
+
 def initialize_database() -> None:
     ensure_directories()
     with get_connection() as connection:
@@ -261,6 +297,59 @@ def initialize_database() -> None:
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
             );
 
+            CREATE TABLE IF NOT EXISTS ingestion_runs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                source TEXT NOT NULL DEFAULT 'local',
+                status TEXT NOT NULL DEFAULT 'draft',
+                contributor_contact TEXT,
+                submitted_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                processed_at TEXT,
+                model_name TEXT,
+                prompt_version TEXT,
+                notes TEXT
+            );
+
+            CREATE TABLE IF NOT EXISTS photo_evidence (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                ingestion_run_id INTEGER REFERENCES ingestion_runs(id) ON DELETE SET NULL,
+                library_id INTEGER REFERENCES libraries(id) ON DELETE SET NULL,
+                role TEXT NOT NULL,
+                photo_path TEXT NOT NULL,
+                original_filename TEXT,
+                content_type TEXT,
+                latitude REAL,
+                longitude REAL,
+                location_source TEXT,
+                gps_required INTEGER NOT NULL DEFAULT 1,
+                accepted INTEGER NOT NULL DEFAULT 1,
+                rejection_reason TEXT,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE TABLE IF NOT EXISTS model_predictions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                ingestion_run_id INTEGER REFERENCES ingestion_runs(id) ON DELETE CASCADE,
+                photo_evidence_id INTEGER REFERENCES photo_evidence(id) ON DELETE SET NULL,
+                prediction_type TEXT NOT NULL,
+                model_name TEXT,
+                prompt_version TEXT,
+                payload_json TEXT NOT NULL,
+                confidence REAL,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE TABLE IF NOT EXISTS review_decisions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                ingestion_run_id INTEGER REFERENCES ingestion_runs(id) ON DELETE CASCADE,
+                reviewer TEXT,
+                decision TEXT NOT NULL,
+                target_type TEXT,
+                target_id INTEGER,
+                notes TEXT,
+                payload_json TEXT,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+
             """
         )
         ensure_column(connection, "libraries", "books_photo_path", "TEXT")
@@ -289,8 +378,16 @@ def initialize_database() -> None:
             CREATE INDEX IF NOT EXISTS idx_library_photos_library_id ON library_photos(library_id);
             CREATE UNIQUE INDEX IF NOT EXISTS idx_library_photos_unique_path
                 ON library_photos(library_id, role, photo_path);
+            CREATE INDEX IF NOT EXISTS idx_ingestion_runs_status ON ingestion_runs(status);
+            CREATE INDEX IF NOT EXISTS idx_photo_evidence_run_id ON photo_evidence(ingestion_run_id);
+            CREATE INDEX IF NOT EXISTS idx_photo_evidence_library_id ON photo_evidence(library_id);
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_photo_evidence_unique_path
+                ON photo_evidence(photo_path);
+            CREATE INDEX IF NOT EXISTS idx_model_predictions_run_id ON model_predictions(ingestion_run_id);
+            CREATE INDEX IF NOT EXISTS idx_review_decisions_run_id ON review_decisions(ingestion_run_id);
             """
         )
+        ensure_schema_version(connection)
 
 
 def should_refresh_library_map() -> bool:
@@ -361,6 +458,113 @@ def clamp_confidence(value: Any) -> float:
     if numeric is None:
         return 0.0
     return max(0.0, min(1.0, numeric))
+
+
+def create_ingestion_run(
+    connection: sqlite3.Connection,
+    *,
+    source: str = "local",
+    status: str = "draft",
+    contributor_contact: str = "",
+    model_name: str = "",
+    prompt_version: str = "",
+    notes: str = "",
+) -> int:
+    cursor = connection.execute(
+        """
+        INSERT INTO ingestion_runs (
+            source,
+            status,
+            contributor_contact,
+            model_name,
+            prompt_version,
+            notes
+        )
+        VALUES (?, ?, ?, ?, ?, ?)
+        """,
+        (
+            str(source or "local").strip() or "local",
+            str(status or "draft").strip() or "draft",
+            str(contributor_contact or "").strip() or None,
+            str(model_name or "").strip() or None,
+            str(prompt_version or "").strip() or None,
+            str(notes or "").strip() or None,
+        ),
+    )
+    return int(cursor.lastrowid)
+
+
+def complete_ingestion_run(connection: sqlite3.Connection, ingestion_run_id: int, status: str = "processed") -> None:
+    connection.execute(
+        """
+        UPDATE ingestion_runs
+        SET status = ?, processed_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+        """,
+        (str(status or "processed").strip() or "processed", ingestion_run_id),
+    )
+
+
+def photo_evidence_location_values(photo: dict[str, Any]) -> tuple[float | None, float | None, str]:
+    location = photo.get("location")
+    if isinstance(location, GeoPoint):
+        return location.latitude, location.longitude, location.source
+    if isinstance(location, dict):
+        return to_float(location.get("latitude")), to_float(location.get("longitude")), str(location.get("source") or "")
+    return None, None, ""
+
+
+def record_photo_evidence(
+    connection: sqlite3.Connection,
+    *,
+    ingestion_run_id: int,
+    library_id: int | None,
+    photos: list[dict[str, Any]],
+    accepted: bool = True,
+    rejection_reason: str = "",
+) -> int:
+    recorded = 0
+    for photo in photos:
+        photo_path = str(photo.get("photo_path") or "").strip()
+        if not photo_path:
+            continue
+        latitude, longitude, location_source = photo_evidence_location_values(photo)
+        cursor = connection.execute(
+            """
+            INSERT OR IGNORE INTO photo_evidence (
+                ingestion_run_id,
+                library_id,
+                role,
+                photo_path,
+                original_filename,
+                content_type,
+                latitude,
+                longitude,
+                location_source,
+                gps_required,
+                accepted,
+                rejection_reason
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                ingestion_run_id,
+                library_id,
+                str(photo.get("role") or "photo").strip() or "photo",
+                photo_path,
+                str(photo.get("original_filename") or "").strip() or None,
+                str(photo.get("content_type") or "").strip() or None,
+                latitude,
+                longitude,
+                location_source.strip() or None,
+                1,
+                1 if accepted else 0,
+                str(rejection_reason or "").strip() or None,
+            ),
+        )
+        if cursor.rowcount:
+            recorded += 1
+    return recorded
 
 
 def sanitize_book(raw_book: dict[str, Any]) -> dict[str, Any]:
@@ -549,9 +753,28 @@ def require_uploaded_photo_gps(saved: list[dict[str, Any]]) -> dict[str, Any]:
     )
 
 
+def require_new_library_location(latitude: float | None, longitude: float | None) -> None:
+    if latitude is None or longitude is None:
+        raise ValueError(
+            "Rejected: new libraries must include GPS coordinates from an accepted photo. "
+            "Upload the original GPS-tagged photo instead of a screenshot or stripped copy."
+        )
+
+
+def require_new_library_name(library_name: str) -> None:
+    if not library_name:
+        raise ValueError("Rejected: new libraries must include a descriptive library name.")
+
+
 def photo_url_from_path(photo_path: Any) -> str | None:
     path = str(photo_path or "").strip().lstrip("/")
     return f"/{path.replace(os.sep, '/')}" if path else None
+
+
+def public_upload_url(photo_path: Any) -> str | None:
+    if os.getenv("CIVITAS_SERVE_UPLOADS") != "1":
+        return None
+    return photo_url_from_path(photo_path)
 
 
 def public_icon_path(icon_path: Any) -> str | None:
@@ -1174,7 +1397,13 @@ def first_photo_path(*values: Any) -> str:
     return ""
 
 
-def find_existing_library_id(connection: sqlite3.Connection, payload: dict[str, Any], charter_number: str) -> int | None:
+def find_existing_library_id(
+    connection: sqlite3.Connection,
+    payload: dict[str, Any],
+    charter_number: str,
+    latitude: float | None = None,
+    longitude: float | None = None,
+) -> int | None:
     library_id = to_int(payload.get("library_id"))
     if library_id:
         row = connection.execute("SELECT id FROM libraries WHERE id = ?", (library_id,)).fetchone()
@@ -1194,6 +1423,25 @@ def find_existing_library_id(connection: sqlite3.Connection, payload: dict[str, 
         ).fetchone()
         if row:
             return int(row["id"])
+
+    if latitude is not None and longitude is not None and not to_bool(payload.get("allow_create_duplicate")):
+        rows = connection.execute(
+            """
+            SELECT id, latitude, longitude
+            FROM libraries
+            WHERE latitude IS NOT NULL
+              AND longitude IS NOT NULL
+            """
+        ).fetchall()
+        nearest_id: int | None = None
+        nearest_distance: float | None = None
+        for row in rows:
+            distance_miles = haversine_miles(latitude, longitude, row["latitude"], row["longitude"])
+            if nearest_distance is None or distance_miles < nearest_distance:
+                nearest_id = int(row["id"])
+                nearest_distance = distance_miles
+        if nearest_id is not None and nearest_distance is not None and nearest_distance <= 0.05:
+            return nearest_id
 
     return None
 
@@ -1403,7 +1651,7 @@ def upsert_library_inventory(
 
 
 def insert_library(payload: dict[str, Any]) -> int:
-    library_name = str(payload.get("library_name") or "").strip() or f"Sidewalk Library {datetime.now().strftime('%b %d')}"
+    library_name = str(payload.get("library_name") or "").strip()
     description = str(payload.get("library_description") or "").strip()
     books_photo_path = first_photo_path(payload.get("books_photo_path"), payload.get("books_photo_paths"))
     location_photo_path = first_photo_path(payload.get("location_photo_path"), payload.get("location_photo_paths"))
@@ -1446,7 +1694,10 @@ def insert_library(payload: dict[str, Any]) -> int:
     charter_record_json = json.dumps(charter_registration, sort_keys=True) if charter_registration else ""
 
     with get_connection() as connection:
-        library_id = find_existing_library_id(connection, payload, charter_number)
+        library_id = find_existing_library_id(connection, payload, charter_number, latitude, longitude)
+        require_new_library_location(latitude, longitude)
+        if not library_id:
+            require_new_library_name(library_name)
         replace_inventory_provided = "replace_inventory" in payload
         replace_inventory = to_bool(payload.get("replace_inventory"))
         if library_id and not replace_inventory_provided:
@@ -1686,9 +1937,9 @@ def search_books(
                     "official_address": official_address,
                     "location_label": official_address or "",
                     "icon_url": icon_url,
-                    "photo_url": f"/{location_photo_path.replace(os.sep, '/')}" if location_photo_path else None,
-                    "books_photo_url": f"/{books_photo_path.replace(os.sep, '/')}" if books_photo_path else None,
-                    "location_photo_url": f"/{location_photo_path.replace(os.sep, '/')}" if location_photo_path else None,
+                    "photo_url": public_upload_url(location_photo_path),
+                    "books_photo_url": public_upload_url(books_photo_path),
+                    "location_photo_url": public_upload_url(location_photo_path),
                 },
                 "distance_miles": distance_miles,
             }
@@ -1765,9 +2016,9 @@ def list_libraries() -> list[dict[str, Any]]:
                 "official_address": official_address,
                 "location_label": official_address or "",
                 "icon_url": icon_url,
-                "photo_url": f"/{location_photo_path.replace(os.sep, '/')}" if location_photo_path else None,
-                "books_photo_url": f"/{books_photo_path.replace(os.sep, '/')}" if books_photo_path else None,
-                "location_photo_url": f"/{location_photo_path.replace(os.sep, '/')}" if location_photo_path else None,
+                "photo_url": public_upload_url(location_photo_path),
+                "books_photo_url": public_upload_url(books_photo_path),
+                "location_photo_url": public_upload_url(location_photo_path),
                 "place_clues": place_clues,
                 "book_count": int(row["book_count"] or 0),
                 "sample_books": book_titles[:5],
@@ -1808,6 +2059,9 @@ class LibraryAtlasHandler(BaseHTTPRequestHandler):
             self.send_json({"libraries": libraries, "count": len(libraries)})
             return
         if path.startswith("/data/uploads/"):
+            if os.getenv("CIVITAS_SERVE_UPLOADS") != "1":
+                self.send_error(HTTPStatus.NOT_FOUND, "Uploaded originals are not publicly served")
+                return
             relative = path.lstrip("/")
             target = BASE_DIR / relative
             self.serve_file(target)
@@ -1992,6 +2246,21 @@ class LibraryAtlasHandler(BaseHTTPRequestHandler):
             payload["photo_path"] = payload.get("location_photo_path") or payload.get("books_photo_path") or payload.get("photo_path") or ""
 
             library_id = insert_library(payload)
+            with get_connection() as connection:
+                ingestion_run_id = create_ingestion_run(
+                    connection,
+                    source="mobile",
+                    status="accepted",
+                    notes="Accepted mobile library contribution.",
+                )
+                record_photo_evidence(
+                    connection,
+                    ingestion_run_id=ingestion_run_id,
+                    library_id=library_id,
+                    photos=all_saved,
+                    accepted=True,
+                )
+                complete_ingestion_run(connection, ingestion_run_id, "accepted")
             books_photo_urls = [item["photo_url"] for item in saved_books]
             location_photo_urls = [item["photo_url"] for item in saved_locations]
             self.send_json(

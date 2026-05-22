@@ -115,7 +115,7 @@ def create_library_icon(library_id: int, library_name: str, source_photo_path: s
     return f"library-icons/{output.name}"
 
 
-def ensure_library_icon(connection: sqlite3.Connection, row: sqlite3.Row) -> str:
+def ensure_library_icon(row: sqlite3.Row) -> str:
     existing_icon_path = str(row["icon_path"] or "").strip().replace("\\", "/")
     if existing_icon_path:
         existing_icon = DEFAULT_ICON_DIR / Path(existing_icon_path).name
@@ -125,10 +125,7 @@ def ensure_library_icon(connection: sqlite3.Connection, row: sqlite3.Row) -> str
     library_id = int(row["id"])
     library_name = row["name"] or f"Library {library_id}"
     source_photo = row["location_photo_path"] or row["books_photo_path"] or row["photo_path"]
-    icon_path = create_library_icon(library_id, library_name, source_photo)
-    if icon_path:
-        connection.execute("UPDATE libraries SET icon_path = ? WHERE id = ?", (icon_path, library_id))
-    return icon_path
+    return create_library_icon(library_id, library_name, source_photo)
 
 
 def load_libraries(connection: sqlite3.Connection) -> list[dict[str, Any]]:
@@ -168,7 +165,7 @@ def load_libraries(connection: sqlite3.Connection) -> list[dict[str, Any]]:
     for row in rows:
         sample_books = [title for title in (row["sample_books"] or "").split("||") if title][:5]
         official_address = format_official_address(row["charter_record_json"])
-        icon_path = ensure_library_icon(connection, row)
+        icon_path = ensure_library_icon(row)
         libraries.append(
             {
                 "id": int(row["id"]),

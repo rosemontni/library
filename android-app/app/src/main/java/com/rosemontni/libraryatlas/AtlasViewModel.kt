@@ -62,7 +62,7 @@ class AtlasViewModel(application: Application) : AndroidViewModel(application) {
                     statusMessage = "EXIF GPS found. Review the shelf details and save when ready."
                 } else {
                     draft = draft.copy(locationSource = "manual")
-                    statusMessage = "No EXIF GPS found in this photo. You can add location manually or use device location."
+                    statusMessage = "No EXIF GPS found. Central contributions require the original GPS-tagged photo."
                 }
             }
         }
@@ -129,6 +129,10 @@ class AtlasViewModel(application: Application) : AndroidViewModel(application) {
     fun saveDraft() {
         val draftToSave = draft
         val serverUrl = centralServerUrl.trim()
+        if (serverUrl.isNotBlank() && draftToSave.locationSource != "photo_exif") {
+            statusMessage = "Central contributions require a photo with embedded EXIF GPS. Pick the original GPS-tagged photo."
+            return
+        }
         busy = true
         statusMessage = if (serverUrl.isBlank()) {
             "Saving library to the on-device atlas..."

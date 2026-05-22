@@ -76,9 +76,6 @@ class AtlasRepository(private val context: Context) {
     }
 
     fun saveLibrary(draft: LibraryDraft): Long {
-        val titleCount = draft.books.count { it.title.isNotBlank() }
-        require(titleCount > 0) { "Add at least one book before saving." }
-
         val latitude = draft.latitude.toDoubleOrNull()
         val longitude = draft.longitude.toDoubleOrNull()
         val photoPath = draft.photoUri.takeIf { it.isNotBlank() }?.let { copyPhotoToPrivateStore(Uri.parse(it)) }

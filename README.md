@@ -30,6 +30,13 @@ python scripts\export_github_pages.py
 
 The exporter writes public shelf metadata, CSNs, location labels, book metadata, and 144x144 derived shelf icons only. It intentionally omits original and uploaded photos so private capture files are not published. When a Little Free Library charter match is available, the public site shows the official address instead of raw coordinates; otherwise it falls back to coordinates. On `main`, [.github/workflows/github-pages.yml](.github/workflows/github-pages.yml) deploys the `docs/` folder to GitHub Pages.
 
+Validate the public snapshot before publishing:
+
+```powershell
+python scripts\validate_public_export.py --export docs\atlas-data.json --site-root docs
+python scripts\smoke_test_pages.py --site-root docs
+```
+
 ## How to contribute photos
 
 Send two GPS-tagged photos to `civitaslibrary@gmail.com`:
@@ -40,6 +47,29 @@ Send two GPS-tagged photos to `civitaslibrary@gmail.com`:
 - If a Little Free Library charter number is visible, include it or make sure it is readable in the photo.
 
 You can contribute either by attaching the photos to an email or by selecting both photos in Google Photos and sharing them with `civitaslibrary@gmail.com`.
+
+## Privacy and release checks
+
+Original photos are private operational evidence, not public website assets. They stay under `data/uploads`, are ignored by Git, and are not served by the app unless `CIVITAS_SERVE_UPLOADS=1` is explicitly set for local debugging. Public exports may reference only derived 144x144 icons in `docs/library-icons`.
+
+Before release or deployment, run:
+
+```powershell
+python -m unittest discover -s tests
+node --check static\app.js
+node --check docs\app.js
+python scripts\validate_public_export.py --export docs\atlas-data.json --site-root docs
+python scripts\smoke_test_pages.py --site-root docs
+```
+
+For Android:
+
+```powershell
+cd android-app
+.\gradlew.bat testDebugUnitTest lintDebug assembleDebug
+```
+
+GitHub Actions runs the same Python/site privacy and smoke-test gates before publishing GitHub Pages and runs Android unit-test, lint, and APK build checks before uploading the debug artifact.
 
 ## What it does
 
@@ -105,6 +135,8 @@ The default metadata file is [samples/blue_little_library_books.json](samples/bl
 ## Android app
 
 The repo includes an Android app in [android-app](android-app). It keeps an on-device copy for offline review, and when a contributor enters the central website URL, `Save + sync to website` uploads the reviewed shelf and optional photo to the central database.
+
+The Android local database uses explicit non-destructive migrations. Empty shelves can be saved as valid observations, but synced contributions still require GPS from the accepted photo evidence.
 
 ```powershell
 $env:ANDROID_HOME="$env:LOCALAPPDATA\Android\Sdk"

@@ -5,10 +5,40 @@ import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 
 class AtlasDatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, null, DATABASE_VERSION) {
+    override fun onConfigure(db: SQLiteDatabase) {
+        db.setForeignKeyConstraintsEnabled(true)
+    }
+
     override fun onCreate(db: SQLiteDatabase) {
+        createSchema(db)
+    }
+
+    override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
+        var migratedVersion = oldVersion
+        db.beginTransaction()
+        try {
+            if (migratedVersion < 1) {
+                createSchema(db)
+                migratedVersion = 1
+            }
+            if (migratedVersion < 2) {
+                migrateToVersion2(db)
+                migratedVersion = 2
+            }
+
+            require(migratedVersion == newVersion) {
+                "Unsupported database migration from $oldVersion to $newVersion"
+            }
+            db.setTransactionSuccessful()
+        } finally {
+            db.endTransaction()
+        }
+    }
+
+    private fun createSchema(db: SQLiteDatabase) {
         db.execSQL(
             """
-            CREATE TABLE libraries (
+            CREATE TABLE IF NOT EXISTS libraries (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT NOT NULL,
                 description TEXT,
@@ -25,7 +55,7 @@ class AtlasDatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE
 
         db.execSQL(
             """
-            CREATE TABLE books (
+            CREATE TABLE IF NOT EXISTS books (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 library_id INTEGER NOT NULL,
                 title TEXT NOT NULL,
@@ -45,20 +75,19 @@ class AtlasDatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE
             """.trimIndent()
         )
 
-        db.execSQL("CREATE INDEX idx_books_library_id ON books(library_id)")
-        db.execSQL("CREATE INDEX idx_books_title ON books(title)")
-        db.execSQL("CREATE INDEX idx_books_isbn ON books(isbn)")
-        db.execSQL("CREATE INDEX idx_libraries_coords ON libraries(latitude, longitude)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS idx_books_library_id ON books(library_id)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS idx_books_title ON books(title)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS idx_books_isbn ON books(isbn)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS idx_libraries_coords ON libraries(latitude, longitude)")
     }
 
-    override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-        db.execSQL("DROP TABLE IF EXISTS books")
-        db.execSQL("DROP TABLE IF EXISTS libraries")
-        onCreate(db)
+    private fun migrateToVersion2(db: SQLiteDatabase) {
+        // Version 2 establishes a non-destructive migration baseline.
+        createSchema(db)
     }
 
     companion object {
         private const val DATABASE_NAME = "little_library_atlas_android.db"
-        private const val DATABASE_VERSION = 1
+        private const val DATABASE_VERSION = 2
     }
 }

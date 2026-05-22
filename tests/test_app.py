@@ -12,6 +12,7 @@ from PIL import Image
 
 import app
 from app import GeoPoint, build_search_blob, choose_best_location, haversine_miles
+from scripts.validate_public_export import validate_public_export
 
 
 def gps_jpeg_bytes(latitude: float = 39.29, longitude: float = -76.61, color: str = "blue") -> bytes:
@@ -36,6 +37,13 @@ def gps_jpeg_bytes(latitude: float = 39.29, longitude: float = -76.61, color: st
     }
     output = io.BytesIO()
     image.save(output, format="JPEG", exif=exif)
+    return output.getvalue()
+
+
+def plain_jpeg_bytes(color: str = "gray") -> bytes:
+    image = Image.new("RGB", (180, 180), color)
+    output = io.BytesIO()
+    image.save(output, format="JPEG")
     return output.getvalue()
 
 
@@ -97,6 +105,168 @@ class AppTests(unittest.TestCase):
                 libraries = app.list_libraries()
                 self.assertEqual(libraries[0]["name"], "Empty Today Shelf")
                 self.assertEqual(libraries[0]["book_count"], 0)
+            finally:
+                app.DATA_DIR = original_data_dir
+                app.UPLOADS_DIR = original_uploads_dir
+                app.DB_PATH = original_db_path
+                gc.collect()
+
+    def test_insert_library_rejects_new_library_without_gps(self) -> None:
+        original_data_dir = app.DATA_DIR
+        original_uploads_dir = app.UPLOADS_DIR
+        original_db_path = app.DB_PATH
+
+        with tempfile.TemporaryDirectory() as tempdir:
+            app.DATA_DIR = Path(tempdir)
+            app.UPLOADS_DIR = app.DATA_DIR / "uploads"
+            app.DB_PATH = app.DATA_DIR / "atlas.db"
+
+            try:
+                app.initialize_database()
+                with self.assertRaisesRegex(ValueError, "GPS coordinates"):
+                    app.insert_library(
+                        {
+                            "library_name": "Ungrounded Shelf",
+                            "library_description": "Should not enter the central atlas without photo GPS.",
+                            "books": [],
+                        }
+                    )
+                self.assertEqual(app.get_counts(), {"libraries": 0, "books": 0})
+            finally:
+                app.DATA_DIR = original_data_dir
+                app.UPLOADS_DIR = original_uploads_dir
+                app.DB_PATH = original_db_path
+                gc.collect()
+
+    def test_insert_library_rejects_existing_library_update_without_gps(self) -> None:
+        original_data_dir = app.DATA_DIR
+        original_uploads_dir = app.UPLOADS_DIR
+        original_db_path = app.DB_PATH
+
+        with tempfile.TemporaryDirectory() as tempdir:
+            app.DATA_DIR = Path(tempdir)
+            app.UPLOADS_DIR = app.DATA_DIR / "uploads"
+            app.DB_PATH = app.DATA_DIR / "atlas.db"
+
+            try:
+                app.initialize_database()
+                library_id = app.insert_library(
+                    {
+                        "library_name": "Grounded Shelf",
+                        "geolocation": {"latitude": 39.29, "longitude": -76.61, "source": "photo_exif"},
+                        "books": [],
+                    }
+                )
+
+                with self.assertRaisesRegex(ValueError, "GPS coordinates"):
+                    app.insert_library(
+                        {
+                            "library_id": library_id,
+                            "library_name": "Grounded Shelf",
+                            "books": [{"title": "Ungrounded Update"}],
+                        }
+                    )
+                self.assertEqual(app.get_counts(), {"libraries": 1, "books": 0})
+            finally:
+                app.DATA_DIR = original_data_dir
+                app.UPLOADS_DIR = original_uploads_dir
+                app.DB_PATH = original_db_path
+                gc.collect()
+
+    def test_public_upload_urls_are_private_by_default(self) -> None:
+        original_value = os.environ.pop("CIVITAS_SERVE_UPLOADS", None)
+        try:
+            self.assertIsNone(app.public_upload_url("data/uploads/original.jpg"))
+            os.environ["CIVITAS_SERVE_UPLOADS"] = "1"
+            self.assertEqual(app.public_upload_url("data/uploads/original.jpg"), "/data/uploads/original.jpg")
+        finally:
+            if original_value is None:
+                os.environ.pop("CIVITAS_SERVE_UPLOADS", None)
+            else:
+                os.environ["CIVITAS_SERVE_UPLOADS"] = original_value
+
+    def test_public_export_validator_rejects_raw_upload_paths(self) -> None:
+        with tempfile.TemporaryDirectory() as tempdir:
+            export_path = Path(tempdir) / "atlas-data.json"
+            export_path.write_text(
+                json.dumps(
+                    {
+                        "counts": {"libraries": 1, "books": 0},
+                        "privacy": {"photos_included": False},
+                        "libraries": [
+                            {
+                                "id": 1,
+                                "name": "Unsafe Shelf",
+                                "icon_url": "data/uploads/original.jpg",
+                            }
+                        ],
+                        "books": [],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            errors = validate_public_export(export_path, Path(tempdir))
+            self.assertTrue(any("raw upload" in error for error in errors))
+
+    def test_public_export_validator_accepts_derived_icons(self) -> None:
+        with tempfile.TemporaryDirectory() as tempdir:
+            site_root = Path(tempdir)
+            icon_dir = site_root / "library-icons"
+            icon_dir.mkdir()
+            (icon_dir / "csn-0001-safe-shelf.png").write_bytes(b"derived icon placeholder")
+            export_path = site_root / "atlas-data.json"
+            export_path.write_text(
+                json.dumps(
+                    {
+                        "counts": {"libraries": 1, "books": 1},
+                        "privacy": {"photos_included": False},
+                        "libraries": [
+                            {
+                                "id": 1,
+                                "name": "Safe Shelf",
+                                "icon_url": "library-icons/csn-0001-safe-shelf.png",
+                            }
+                        ],
+                        "books": [{"id": 1, "library_id": 1, "title": "Safe Book"}],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            self.assertEqual(validate_public_export(export_path, site_root), [])
+
+    def test_nearby_upload_updates_existing_library_without_charter(self) -> None:
+        original_data_dir = app.DATA_DIR
+        original_uploads_dir = app.UPLOADS_DIR
+        original_db_path = app.DB_PATH
+
+        with tempfile.TemporaryDirectory() as tempdir:
+            app.DATA_DIR = Path(tempdir)
+            app.UPLOADS_DIR = app.DATA_DIR / "uploads"
+            app.DB_PATH = app.DATA_DIR / "atlas.db"
+
+            try:
+                app.initialize_database()
+                first_id = app.insert_library(
+                    {
+                        "library_name": "Maple Corner Shelf",
+                        "geolocation": {"latitude": 39.2900, "longitude": -76.6100, "source": "photo_exif"},
+                        "books": [{"title": "First Snapshot", "genre": "Fiction"}],
+                    }
+                )
+                second_id = app.insert_library(
+                    {
+                        "library_name": "Maple Corner Shelf Updated",
+                        "geolocation": {"latitude": 39.2902, "longitude": -76.6102, "source": "photo_exif"},
+                        "books": [{"title": "Second Snapshot", "genre": "Fiction"}],
+                    }
+                )
+
+                self.assertEqual(second_id, first_id)
+                self.assertEqual(app.get_counts(), {"libraries": 1, "books": 1})
+                self.assertEqual(app.search_books("Second Snapshot", 39.29, -76.61, 5)[0]["library"]["id"], first_id)
+                self.assertEqual(app.search_books("First Snapshot", 39.29, -76.61, 5), [])
             finally:
                 app.DATA_DIR = original_data_dir
                 app.UPLOADS_DIR = original_uploads_dir
@@ -312,16 +482,103 @@ class AppTests(unittest.TestCase):
                     response_payload = json.loads(response.read().decode("utf-8"))
                     connection.close()
 
-                    self.assertEqual(response.status, 201)
+                    self.assertEqual(response.status, 201, response_payload)
                     self.assertEqual(response_payload["counts"], {"libraries": 1, "books": 1})
                     self.assertTrue(response_payload["location_photo_url"].startswith("/data/uploads/"))
                     self.assertEqual(len(response_payload["location_photo_urls"]), 2)
                     results = app.search_books("Parable", 39.29, -76.61, 5)
                     self.assertEqual(results[0]["library"]["name"], "Test Central Shelf")
-                    self.assertTrue(results[0]["library"]["location_photo_url"].startswith("/data/uploads/"))
+                    self.assertIsNone(results[0]["library"]["location_photo_url"])
                     with app.get_connection() as db:
                         photo_count = db.execute("SELECT COUNT(*) FROM library_photos").fetchone()[0]
+                        ingestion_count = db.execute("SELECT COUNT(*) FROM ingestion_runs").fetchone()[0]
+                        evidence_count = db.execute("SELECT COUNT(*) FROM photo_evidence").fetchone()[0]
+                        accepted_evidence_count = db.execute(
+                            "SELECT COUNT(*) FROM photo_evidence WHERE accepted = 1 AND library_id = ?",
+                            (response_payload["library_id"],),
+                        ).fetchone()[0]
                     self.assertEqual(photo_count, 4)
+                    self.assertEqual(ingestion_count, 1)
+                    self.assertEqual(evidence_count, 4)
+                    self.assertEqual(accepted_evidence_count, 4)
+                finally:
+                    server.shutdown()
+                    thread.join(timeout=2)
+                    server.server_close()
+                    gc.collect()
+            finally:
+                app.DATA_DIR = original_data_dir
+                app.UPLOADS_DIR = original_uploads_dir
+                app.DB_PATH = original_db_path
+
+    def test_mobile_contribution_without_gps_is_rejected_and_cleaned(self) -> None:
+        original_data_dir = app.DATA_DIR
+        original_uploads_dir = app.UPLOADS_DIR
+        original_db_path = app.DB_PATH
+
+        with tempfile.TemporaryDirectory() as tempdir:
+            app.DATA_DIR = Path(tempdir)
+            app.UPLOADS_DIR = app.DATA_DIR / "uploads"
+            app.DB_PATH = app.DATA_DIR / "atlas.db"
+
+            try:
+                app.initialize_database()
+                server = app.ThreadingHTTPServer(("127.0.0.1", 0), app.LibraryAtlasHandler)
+                thread = threading.Thread(target=server.serve_forever, daemon=True)
+                thread.start()
+
+                try:
+                    payload = {
+                        "library_name": "No GPS Shelf",
+                        "library_description": "This should be rejected because the photo has no EXIF GPS.",
+                        "books": [],
+                    }
+                    boundary = "LittleLibraryAtlasNoGpsBoundary"
+                    parts = [
+                        (
+                            "payload",
+                            None,
+                            "application/json",
+                            json.dumps(payload).encode("utf-8"),
+                        ),
+                        ("location_photo", "stripped.jpg", "image/jpeg", plain_jpeg_bytes()),
+                    ]
+                    chunks: list[bytes] = []
+                    for name, filename, content_type, content in parts:
+                        chunks.append(f"--{boundary}\r\n".encode("utf-8"))
+                        if filename:
+                            chunks.append(
+                                (
+                                    f"Content-Disposition: form-data; name=\"{name}\"; filename=\"{filename}\"\r\n"
+                                    f"Content-Type: {content_type}\r\n\r\n"
+                                ).encode("utf-8")
+                            )
+                        else:
+                            chunks.append(f"Content-Disposition: form-data; name=\"{name}\"\r\n\r\n".encode("utf-8"))
+                        chunks.append(content)
+                        chunks.append(b"\r\n")
+                    chunks.append(f"--{boundary}--\r\n".encode("utf-8"))
+                    body = b"".join(chunks)
+
+                    connection = http.client.HTTPConnection("127.0.0.1", server.server_port, timeout=5)
+                    connection.request(
+                        "POST",
+                        "/api/mobile/libraries",
+                        body=body,
+                        headers={"Content-Type": f"multipart/form-data; boundary={boundary}"},
+                    )
+                    response = connection.getresponse()
+                    response_payload = json.loads(response.read().decode("utf-8"))
+                    connection.close()
+
+                    self.assertEqual(response.status, 400, response_payload)
+                    self.assertIn("EXIF GPS", response_payload["error"])
+                    self.assertEqual(app.get_counts(), {"libraries": 0, "books": 0})
+                    self.assertEqual(list(app.UPLOADS_DIR.glob("*")), [])
+                    with app.get_connection() as db:
+                        self.assertEqual(db.execute("SELECT COUNT(*) FROM ingestion_runs").fetchone()[0], 0)
+                        self.assertEqual(db.execute("SELECT COUNT(*) FROM photo_evidence").fetchone()[0], 0)
+                        self.assertEqual(db.execute("SELECT COUNT(*) FROM library_photos").fetchone()[0], 0)
                 finally:
                     server.shutdown()
                     thread.join(timeout=2)
@@ -403,6 +660,115 @@ class AppTests(unittest.TestCase):
                 app.DB_PATH = original_db_path
                 app.MAP_OUTPUT_PATH = original_map_output_path
                 app.PAGES_DATA_PATH = original_pages_data_path
+                gc.collect()
+
+    def test_android_database_upgrade_is_non_destructive(self) -> None:
+        helper_path = Path("android-app/app/src/main/java/com/rosemontni/libraryatlas/AtlasDatabaseHelper.kt")
+        helper_source = helper_path.read_text(encoding="utf-8")
+        upgrade_body = helper_source.split("override fun onUpgrade", 1)[1].split("companion object", 1)[0]
+
+        self.assertNotIn("DROP TABLE", upgrade_body.upper())
+        self.assertIn("migrateToVersion2", upgrade_body)
+        self.assertIn("DATABASE_VERSION = 2", helper_source)
+
+    def test_github_pages_static_smoke_test_passes(self) -> None:
+        from scripts.smoke_test_pages import validate_pages_site
+
+        self.assertEqual(validate_pages_site(Path("docs")), [])
+
+    def test_initialize_database_records_schema_version(self) -> None:
+        original_data_dir = app.DATA_DIR
+        original_uploads_dir = app.UPLOADS_DIR
+        original_db_path = app.DB_PATH
+
+        with tempfile.TemporaryDirectory() as tempdir:
+            app.DATA_DIR = Path(tempdir)
+            app.UPLOADS_DIR = app.DATA_DIR / "uploads"
+            app.DB_PATH = app.DATA_DIR / "atlas.db"
+
+            try:
+                app.initialize_database()
+                with app.get_connection() as db:
+                    version = db.execute("SELECT version FROM schema_migrations WHERE id = 1").fetchone()["version"]
+                self.assertEqual(version, app.DATABASE_SCHEMA_VERSION)
+            finally:
+                app.DATA_DIR = original_data_dir
+                app.UPLOADS_DIR = original_uploads_dir
+                app.DB_PATH = original_db_path
+                gc.collect()
+
+    def test_initialize_database_rejects_newer_schema_version(self) -> None:
+        original_data_dir = app.DATA_DIR
+        original_uploads_dir = app.UPLOADS_DIR
+        original_db_path = app.DB_PATH
+
+        with tempfile.TemporaryDirectory() as tempdir:
+            app.DATA_DIR = Path(tempdir)
+            app.UPLOADS_DIR = app.DATA_DIR / "uploads"
+            app.DB_PATH = app.DATA_DIR / "atlas.db"
+
+            try:
+                app.initialize_database()
+                with app.get_connection() as db:
+                    db.execute(
+                        "UPDATE schema_migrations SET version = ? WHERE id = 1",
+                        (app.DATABASE_SCHEMA_VERSION + 1,),
+                    )
+                with self.assertRaises(RuntimeError):
+                    app.initialize_database()
+            finally:
+                app.DATA_DIR = original_data_dir
+                app.UPLOADS_DIR = original_uploads_dir
+                app.DB_PATH = original_db_path
+                gc.collect()
+
+    def test_initialize_database_creates_observation_layer_tables(self) -> None:
+        original_data_dir = app.DATA_DIR
+        original_uploads_dir = app.UPLOADS_DIR
+        original_db_path = app.DB_PATH
+
+        with tempfile.TemporaryDirectory() as tempdir:
+            app.DATA_DIR = Path(tempdir)
+            app.UPLOADS_DIR = app.DATA_DIR / "uploads"
+            app.DB_PATH = app.DATA_DIR / "atlas.db"
+
+            try:
+                app.initialize_database()
+                with app.get_connection() as db:
+                    table_names = {
+                        row["name"]
+                        for row in db.execute(
+                            "SELECT name FROM sqlite_master WHERE type = 'table'"
+                        ).fetchall()
+                    }
+                    photo_columns = {
+                        row["name"]
+                        for row in db.execute("PRAGMA table_info(photo_evidence)").fetchall()
+                    }
+                    prediction_columns = {
+                        row["name"]
+                        for row in db.execute("PRAGMA table_info(model_predictions)").fetchall()
+                    }
+                    review_columns = {
+                        row["name"]
+                        for row in db.execute("PRAGMA table_info(review_decisions)").fetchall()
+                    }
+
+                self.assertTrue(
+                    {
+                        "ingestion_runs",
+                        "photo_evidence",
+                        "model_predictions",
+                        "review_decisions",
+                    }.issubset(table_names)
+                )
+                self.assertTrue({"gps_required", "accepted", "rejection_reason"}.issubset(photo_columns))
+                self.assertIn("payload_json", prediction_columns)
+                self.assertIn("decision", review_columns)
+            finally:
+                app.DATA_DIR = original_data_dir
+                app.UPLOADS_DIR = original_uploads_dir
+                app.DB_PATH = original_db_path
                 gc.collect()
 
 

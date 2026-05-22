@@ -27,6 +27,14 @@ jobs:
         working-directory: android-app
         run: chmod +x ./gradlew
 
+      - name: Run Android unit tests
+        working-directory: android-app
+        run: ./gradlew testDebugUnitTest
+
+      - name: Run Android lint
+        working-directory: android-app
+        run: ./gradlew lintDebug
+
       - name: Assemble debug APK
         working-directory: android-app
         run: ./gradlew assembleDebug

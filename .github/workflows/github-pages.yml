@@ -25,6 +25,34 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install Python dependencies
+        run: python -m pip install -r requirements.txt
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Run backend regression tests
+        run: python -m unittest discover -s tests
+
+      - name: Check site JavaScript
+        run: |
+          node --check static/app.js
+          node --check docs/app.js
+
+      - name: Validate public Pages export
+        run: python scripts/validate_public_export.py --export docs/atlas-data.json --site-root docs
+
+      - name: Smoke-test generated Pages site
+        run: python scripts/smoke_test_pages.py --site-root docs
+
       - name: Configure Pages
         uses: actions/configure-pages@v5
         with:
