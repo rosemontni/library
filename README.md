@@ -37,6 +37,12 @@ python scripts\validate_public_export.py --export docs\atlas-data.json --site-ro
 python scripts\smoke_test_pages.py --site-root docs
 ```
 
+## Public API
+
+Community programmers can search the central database from their own code through the versioned read API at `/api/v1`. Start with [API.md](API.md) for endpoint details, rate limits, Python and JavaScript examples, and the OpenAPI schema path.
+
+The default public API rate limit is `60` requests per `60` seconds per client IP. Deployments can tune it with `PUBLIC_API_RATE_LIMIT_REQUESTS` and `PUBLIC_API_RATE_LIMIT_WINDOW_SECONDS` to keep the project useful for neighbors while discouraging commercial abuse.
+
 ## How to contribute photos
 
 Send two GPS-tagged photos to `civitaslibrary@gmail.com`:

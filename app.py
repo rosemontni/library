@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import base64
+from collections import deque
 import json
 import math
 import mimetypes
 import os
 import re
 import sqlite3
+import threading
+import time
 import urllib.error
 import urllib.request
 import uuid
@@ -18,7 +21,7 @@ from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
-from urllib.parse import quote, urlparse
+from urllib.parse import parse_qs, quote, urlparse
 
 from PIL import Image, ImageOps, UnidentifiedImageError
 
@@ -37,6 +40,11 @@ DATABASE_SCHEMA_VERSION = 2
 HOST = os.getenv("HOST", "127.0.0.1")
 PORT = int(os.getenv("PORT", "8000"))
 DEFAULT_RADIUS_MILES = 25.0
+PUBLIC_API_VERSION = "v1"
+PUBLIC_API_DEFAULT_LIMIT = 25
+PUBLIC_API_MAX_LIMIT = 100
+PUBLIC_API_RATE_LIMIT_REQUESTS = int(os.getenv("PUBLIC_API_RATE_LIMIT_REQUESTS", "60"))
+PUBLIC_API_RATE_LIMIT_WINDOW_SECONDS = int(os.getenv("PUBLIC_API_RATE_LIMIT_WINDOW_SECONDS", "60"))
 MAX_IMAGE_BYTES = 25 * 1024 * 1024
 MAX_UPLOAD_FILES = 10
 MAX_MULTIPART_BYTES = (MAX_IMAGE_BYTES * MAX_UPLOAD_FILES) + (2 * 1024 * 1024)
@@ -72,6 +80,38 @@ CATEGORY_MARKERS = {
     "wellness": ("health", "nutrition", "fitness", "yoga"),
     "media": ("dvd", "film"),
 }
+
+LOCAL_ZIP_CENTROIDS: dict[str, dict[str, Any]] = {
+    "20001": {"latitude": 38.9101, "longitude": -77.0171, "label": "Washington, DC 20001"},
+    "20002": {"latitude": 38.9057, "longitude": -76.9845, "label": "Washington, DC 20002"},
+    "20003": {"latitude": 38.884, "longitude": -76.994, "label": "Washington, DC 20003"},
+    "20007": {"latitude": 38.9146, "longitude": -77.0742, "label": "Washington, DC 20007"},
+    "20740": {"latitude": 38.996, "longitude": -76.929, "label": "College Park, MD 20740"},
+    "20814": {"latitude": 38.9907, "longitude": -77.1003, "label": "Bethesda, MD 20814"},
+    "20815": {"latitude": 38.9834, "longitude": -77.0789, "label": "Chevy Chase, MD 20815"},
+    "20817": {"latitude": 39.0007, "longitude": -77.1547, "label": "Bethesda, MD 20817"},
+    "20850": {"latitude": 39.0891, "longitude": -77.1837, "label": "Rockville, MD 20850"},
+    "20852": {"latitude": 39.0497, "longitude": -77.1209, "label": "North Bethesda, MD 20852"},
+    "20854": {"latitude": 39.0384, "longitude": -77.2003, "label": "Potomac, MD 20854"},
+    "20877": {"latitude": 39.1434, "longitude": -77.2014, "label": "Gaithersburg, MD 20877"},
+    "20878": {"latitude": 39.1148, "longitude": -77.2469, "label": "Gaithersburg, MD 20878"},
+    "20879": {"latitude": 39.1699, "longitude": -77.1696, "label": "Gaithersburg, MD 20879"},
+    "20895": {"latitude": 39.0297, "longitude": -77.0764, "label": "Kensington, MD 20895"},
+    "20901": {"latitude": 39.0219, "longitude": -77.0077, "label": "Silver Spring, MD 20901"},
+    "20902": {"latitude": 39.0438, "longitude": -77.0458, "label": "Silver Spring, MD 20902"},
+    "20910": {"latitude": 38.9987, "longitude": -77.033, "label": "Silver Spring, MD 20910"},
+    "20912": {"latitude": 38.9807, "longitude": -76.9897, "label": "Takoma Park, MD 20912"},
+    "21044": {"latitude": 39.207, "longitude": -76.883, "label": "Columbia, MD 21044"},
+    "21201": {"latitude": 39.2953, "longitude": -76.6181, "label": "Baltimore, MD 21201"},
+    "22201": {"latitude": 38.8865, "longitude": -77.095, "label": "Arlington, VA 22201"},
+    "22202": {"latitude": 38.8564, "longitude": -77.0539, "label": "Arlington, VA 22202"},
+    "22203": {"latitude": 38.8735, "longitude": -77.1175, "label": "Arlington, VA 22203"},
+    "22204": {"latitude": 38.8613, "longitude": -77.0985, "label": "Arlington, VA 22204"},
+    "22205": {"latitude": 38.8836, "longitude": -77.139, "label": "Arlington, VA 22205"},
+    "22301": {"latitude": 38.8197, "longitude": -77.0584, "label": "Alexandria, VA 22301"},
+}
+PUBLIC_API_RATE_LIMIT_BUCKETS: dict[str, deque[float]] = {}
+PUBLIC_API_RATE_LIMIT_LOCK = threading.Lock()
 
 OPENAI_API_URL = "https://api.openai.com/v1/responses"
 DEFAULT_OPENAI_MODEL = os.getenv("OPENAI_VISION_MODEL", "gpt-4.1-mini")
@@ -451,6 +491,98 @@ def to_float(value: Any) -> float | None:
         return float(value)
     except (TypeError, ValueError):
         return None
+
+
+def normalize_zip_code(value: Any) -> str:
+    match = re.match(r"^(\d{5})(?:-\d{4})?$", str(value or "").strip())
+    return match.group(1) if match else ""
+
+
+def query_value(params: dict[str, list[str]], *names: str, default: str = "") -> str:
+    for name in names:
+        values = params.get(name)
+        if values and values[0] not in (None, ""):
+            return str(values[0]).strip()
+    return default
+
+
+def bounded_int(value: Any, default: int, minimum: int, maximum: int) -> int:
+    try:
+        parsed = int(str(value).strip())
+    except (TypeError, ValueError):
+        parsed = default
+    return max(minimum, min(maximum, parsed))
+
+
+def bounded_float(value: Any, default: float, minimum: float, maximum: float) -> float:
+    parsed = to_float(value)
+    if parsed is None:
+        parsed = default
+    return max(minimum, min(maximum, parsed))
+
+
+def resolve_public_api_location(params: dict[str, list[str]]) -> tuple[float | None, float | None, str]:
+    latitude = to_float(query_value(params, "lat", "latitude"))
+    longitude = to_float(query_value(params, "lon", "lng", "longitude"))
+    if latitude is not None and longitude is not None:
+        return latitude, longitude, "coordinates"
+
+    zip_code = normalize_zip_code(query_value(params, "zip", "zipcode", "postal_code"))
+    if not zip_code:
+        return None, None, ""
+
+    centroid = LOCAL_ZIP_CENTROIDS.get(zip_code)
+    if not centroid:
+        raise ValueError(
+            f"ZIP code {zip_code} is not in the built-in local centroid table yet. "
+            "Use latitude and longitude for broader coverage."
+        )
+    return float(centroid["latitude"]), float(centroid["longitude"]), str(centroid["label"])
+
+
+def check_public_api_rate_limit(client_key: str) -> dict[str, Any]:
+    limit = PUBLIC_API_RATE_LIMIT_REQUESTS
+    window_seconds = PUBLIC_API_RATE_LIMIT_WINDOW_SECONDS
+    if limit <= 0 or window_seconds <= 0:
+        return {"allowed": True, "limit": limit, "remaining": -1, "reset_seconds": 0, "retry_after": 0}
+
+    now = time.monotonic()
+    window_start = now - window_seconds
+    with PUBLIC_API_RATE_LIMIT_LOCK:
+        bucket = PUBLIC_API_RATE_LIMIT_BUCKETS.setdefault(client_key, deque())
+        while bucket and bucket[0] <= window_start:
+            bucket.popleft()
+
+        if len(bucket) >= limit:
+            retry_after = max(1, math.ceil(bucket[0] + window_seconds - now))
+            return {
+                "allowed": False,
+                "limit": limit,
+                "remaining": 0,
+                "reset_seconds": retry_after,
+                "retry_after": retry_after,
+            }
+
+        bucket.append(now)
+        reset_seconds = max(1, math.ceil(bucket[0] + window_seconds - now))
+        return {
+            "allowed": True,
+            "limit": limit,
+            "remaining": max(0, limit - len(bucket)),
+            "reset_seconds": reset_seconds,
+            "retry_after": 0,
+        }
+
+
+def rate_limit_headers(rate_limit: dict[str, Any]) -> dict[str, str]:
+    headers = {
+        "X-RateLimit-Limit": str(rate_limit["limit"]),
+        "X-RateLimit-Remaining": str(rate_limit["remaining"]),
+        "X-RateLimit-Reset": str(rate_limit["reset_seconds"]),
+    }
+    if rate_limit.get("retry_after"):
+        headers["Retry-After"] = str(rate_limit["retry_after"])
+    return headers
 
 
 def clamp_confidence(value: Any) -> float:
@@ -1845,6 +1977,7 @@ def search_books(
     longitude: float | None,
     radius_miles: float,
     category: str = "",
+    limit: int = 30,
 ) -> list[dict[str, Any]]:
     normalized_query = normalize_text(query)
     terms = [term for term in normalized_query.split(" ") if term]
@@ -1931,6 +2064,9 @@ def search_books(
                     "description": row["library_description"],
                     "latitude": row["latitude"],
                     "longitude": row["longitude"],
+                    "marker_latitude": row["latitude"],
+                    "marker_longitude": row["longitude"],
+                    "marker_location_source": row["location_source"] or "",
                     "location_source": row["location_source"],
                     "location_confidence": row["location_confidence"],
                     "charter_number": row["charter_number"],
@@ -1953,7 +2089,49 @@ def search_books(
             item["title"].lower(),
         )
     )
-    return results[:30]
+    return results[:limit]
+
+
+def list_library_books(library_id: int) -> list[dict[str, Any]]:
+    sql = """
+        SELECT
+            id,
+            title,
+            author,
+            isbn,
+            publisher,
+            published_year,
+            genre,
+            format,
+            condition,
+            confidence,
+            notes,
+            status
+        FROM books
+        WHERE library_id = ?
+          AND COALESCE(status, 'active') = 'active'
+        ORDER BY title ASC, id ASC
+    """
+    with get_connection() as connection:
+        rows = connection.execute(sql, (library_id,)).fetchall()
+
+    return [
+        {
+            "book_id": row["id"],
+            "title": row["title"],
+            "author": row["author"],
+            "isbn": row["isbn"],
+            "publisher": row["publisher"],
+            "published_year": row["published_year"],
+            "genre": row["genre"],
+            "format": row["format"],
+            "condition": row["condition"],
+            "confidence": row["confidence"],
+            "notes": row["notes"],
+            "status": row["status"] or "active",
+        }
+        for row in rows
+    ]
 
 
 def list_libraries() -> list[dict[str, Any]]:
@@ -2007,6 +2185,9 @@ def list_libraries() -> list[dict[str, Any]]:
                 "description": row["description"],
                 "latitude": row["latitude"],
                 "longitude": row["longitude"],
+                "marker_latitude": row["latitude"],
+                "marker_longitude": row["longitude"],
+                "marker_location_source": row["location_source"] or "",
                 "location_source": row["location_source"],
                 "location_confidence": row["location_confidence"],
                 "charter_number": row["charter_number"] or "",
@@ -2026,6 +2207,118 @@ def list_libraries() -> list[dict[str, Any]]:
         )
 
     return libraries
+
+
+def build_public_openapi_spec() -> dict[str, Any]:
+    rate_limit = f"{PUBLIC_API_RATE_LIMIT_REQUESTS} requests per {PUBLIC_API_RATE_LIMIT_WINDOW_SECONDS} seconds per IP"
+    library_schema = {
+        "type": "object",
+        "properties": {
+            "id": {"type": "integer"},
+            "csn": {"type": "string"},
+            "name": {"type": "string"},
+            "description": {"type": "string"},
+            "latitude": {"type": "number"},
+            "longitude": {"type": "number"},
+            "marker_latitude": {"type": "number"},
+            "marker_longitude": {"type": "number"},
+            "marker_location_source": {"type": "string"},
+            "official_address": {"type": "string"},
+            "charter_number": {"type": "string"},
+            "icon_url": {"type": "string"},
+            "book_count": {"type": "integer"},
+            "distance_miles": {"type": ["number", "null"]},
+        },
+    }
+    book_schema = {
+        "type": "object",
+        "properties": {
+            "book_id": {"type": "integer"},
+            "title": {"type": "string"},
+            "author": {"type": "string"},
+            "isbn": {"type": "string"},
+            "publisher": {"type": "string"},
+            "published_year": {"type": "string"},
+            "genre": {"type": "string"},
+            "library": library_schema,
+            "distance_miles": {"type": ["number", "null"]},
+        },
+    }
+    return {
+        "openapi": "3.1.0",
+        "info": {
+            "title": "Civitas Library Public API",
+            "version": PUBLIC_API_VERSION,
+            "description": (
+                "Community-friendly read API for searching neighborhood mini-library books and shelf locations. "
+                f"Fair-use rate limit: {rate_limit}."
+            ),
+            "contact": {"email": "civitaslibrary@gmail.com"},
+            "license": {"name": "Apache-2.0"},
+        },
+        "paths": {
+            "/api/v1/search": {
+                "get": {
+                    "summary": "Search active books",
+                    "parameters": [
+                        {"name": "q", "in": "query", "schema": {"type": "string"}},
+                        {"name": "category", "in": "query", "schema": {"type": "string"}},
+                        {"name": "zip", "in": "query", "schema": {"type": "string"}},
+                        {"name": "lat", "in": "query", "schema": {"type": "number"}},
+                        {"name": "lon", "in": "query", "schema": {"type": "number"}},
+                        {"name": "radius_miles", "in": "query", "schema": {"type": "number", "default": DEFAULT_RADIUS_MILES}},
+                        {"name": "limit", "in": "query", "schema": {"type": "integer", "default": PUBLIC_API_DEFAULT_LIMIT}},
+                    ],
+                    "responses": {
+                        "200": {
+                            "description": "Search results",
+                            "content": {
+                                "application/json": {
+                                    "schema": {
+                                        "type": "object",
+                                        "properties": {"results": {"type": "array", "items": book_schema}},
+                                    }
+                                }
+                            },
+                        }
+                    },
+                }
+            },
+            "/api/v1/libraries": {
+                "get": {
+                    "summary": "List mini libraries",
+                    "parameters": [
+                        {"name": "q", "in": "query", "schema": {"type": "string"}},
+                        {"name": "zip", "in": "query", "schema": {"type": "string"}},
+                        {"name": "lat", "in": "query", "schema": {"type": "number"}},
+                        {"name": "lon", "in": "query", "schema": {"type": "number"}},
+                        {"name": "limit", "in": "query", "schema": {"type": "integer", "default": PUBLIC_API_DEFAULT_LIMIT}},
+                        {"name": "offset", "in": "query", "schema": {"type": "integer", "default": 0}},
+                    ],
+                    "responses": {
+                        "200": {
+                            "description": "Libraries",
+                            "content": {
+                                "application/json": {
+                                    "schema": {
+                                        "type": "object",
+                                        "properties": {"libraries": {"type": "array", "items": library_schema}},
+                                    }
+                                }
+                            },
+                        }
+                    },
+                }
+            },
+            "/api/v1/libraries/{id}": {
+                "get": {
+                    "summary": "Get one mini library and its active books",
+                    "parameters": [{"name": "id", "in": "path", "required": True, "schema": {"type": "integer"}}],
+                    "responses": {"200": {"description": "Library detail"}},
+                }
+            },
+        },
+    }
 
 
 class LibraryAtlasHandler(BaseHTTPRequestHandler):
@@ -2058,6 +2351,28 @@ class LibraryAtlasHandler(BaseHTTPRequestHandler):
             libraries = list_libraries()
             self.send_json({"libraries": libraries, "count": len(libraries)})
             return
+        if path == "/api/v1/openapi.json":
+            self.send_json(build_public_openapi_spec())
+            return
+        if path == "/api/v1/search":
+            headers = self.public_api_rate_limit_headers("search")
+            if headers is None:
+                return
+            self.handle_public_search(parsed, headers)
+            return
+        if path == "/api/v1/libraries":
+            headers = self.public_api_rate_limit_headers("libraries")
+            if headers is None:
+                return
+            self.handle_public_libraries(parsed, headers)
+            return
+        library_detail_match = re.fullmatch(r"/api/v1/libraries/(\d+)", path)
+        if library_detail_match:
+            headers = self.public_api_rate_limit_headers("libraries")
+            if headers is None:
+                return
+            self.handle_public_library_detail(int(library_detail_match.group(1)), headers)
+            return
         if path.startswith("/data/uploads/"):
             if os.getenv("CIVITAS_SERVE_UPLOADS") != "1":
                 self.send_error(HTTPStatus.NOT_FOUND, "Uploaded originals are not publicly served")
@@ -2072,6 +2387,14 @@ class LibraryAtlasHandler(BaseHTTPRequestHandler):
             return
 
         self.send_error(HTTPStatus.NOT_FOUND, "Not found")
+
+    def do_OPTIONS(self) -> None:  # noqa: N802
+        self.send_response(HTTPStatus.NO_CONTENT)
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.send_header("Access-Control-Max-Age", "86400")
+        self.end_headers()
 
     def do_POST(self) -> None:  # noqa: N802
         parsed = urlparse(self.path)
@@ -2107,13 +2430,164 @@ class LibraryAtlasHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(payload)
 
-    def send_json(self, payload: dict[str, Any], status: HTTPStatus = HTTPStatus.OK) -> None:
+    def send_json(
+        self,
+        payload: dict[str, Any],
+        status: HTTPStatus = HTTPStatus.OK,
+        headers: dict[str, str] | None = None,
+    ) -> None:
         raw = json.dumps(payload).encode("utf-8")
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(raw)))
+        self.send_header("Access-Control-Allow-Origin", "*")
+        for header, value in (headers or {}).items():
+            self.send_header(header, value)
         self.end_headers()
         self.wfile.write(raw)
+
+    def public_api_client_key(self, scope: str) -> str:
+        forwarded_for = self.headers.get("X-Forwarded-For", "")
+        address = forwarded_for.split(",", 1)[0].strip() if forwarded_for else self.client_address[0]
+        return f"{scope}:{address}"
+
+    def public_api_rate_limit_headers(self, scope: str) -> dict[str, str] | None:
+        rate_limit = check_public_api_rate_limit(self.public_api_client_key(scope))
+        headers = rate_limit_headers(rate_limit)
+        if rate_limit["allowed"]:
+            return headers
+
+        self.send_json(
+            {
+                "error": "Rate limit exceeded. Please slow down and cache responses for community-friendly use.",
+                "limit": rate_limit["limit"],
+                "window_seconds": PUBLIC_API_RATE_LIMIT_WINDOW_SECONDS,
+                "retry_after_seconds": rate_limit["retry_after"],
+            },
+            HTTPStatus.TOO_MANY_REQUESTS,
+            headers,
+        )
+        return None
+
+    def handle_public_search(self, parsed: Any, headers: dict[str, str]) -> None:
+        try:
+            params = parse_qs(parsed.query)
+            query = query_value(params, "q", "query")
+            category = query_value(params, "category", "genre")
+            if not query and not category:
+                self.send_json({"error": "Query parameter 'q' or 'category' is required."}, HTTPStatus.BAD_REQUEST, headers)
+                return
+
+            latitude, longitude, location_label = resolve_public_api_location(params)
+            radius_miles = bounded_float(
+                query_value(params, "radius_miles", "radius"),
+                DEFAULT_RADIUS_MILES,
+                1.0,
+                250.0,
+            )
+            limit = bounded_int(
+                query_value(params, "limit"),
+                PUBLIC_API_DEFAULT_LIMIT,
+                1,
+                PUBLIC_API_MAX_LIMIT,
+            )
+            results = search_books(query, latitude, longitude, radius_miles, category, limit)
+            self.send_json(
+                {
+                    "api_version": PUBLIC_API_VERSION,
+                    "query": {
+                        "q": query,
+                        "category": category,
+                        "latitude": latitude,
+                        "longitude": longitude,
+                        "location_label": location_label,
+                        "radius_miles": radius_miles,
+                        "limit": limit,
+                    },
+                    "count": len(results),
+                    "results": results,
+                },
+                headers=headers,
+            )
+        except ValueError as error:
+            self.send_json({"error": str(error)}, HTTPStatus.BAD_REQUEST, headers)
+
+    def handle_public_libraries(self, parsed: Any, headers: dict[str, str]) -> None:
+        try:
+            params = parse_qs(parsed.query)
+            limit = bounded_int(query_value(params, "limit"), PUBLIC_API_DEFAULT_LIMIT, 1, PUBLIC_API_MAX_LIMIT)
+            offset = bounded_int(query_value(params, "offset"), 0, 0, 1_000_000)
+            query = normalize_text(query_value(params, "q", "query"))
+            latitude, longitude, location_label = resolve_public_api_location(params)
+            libraries = list_libraries()
+
+            if query:
+                libraries = [
+                    library
+                    for library in libraries
+                    if query
+                    in build_search_blob(
+                        library.get("name"),
+                        library.get("description"),
+                        library.get("charter_number"),
+                        " ".join(library.get("sample_books") or []),
+                    )
+                ]
+
+            enriched_libraries: list[dict[str, Any]] = []
+            for library in libraries:
+                item = dict(library)
+                distance_miles = None
+                if latitude is not None and longitude is not None and item.get("latitude") is not None and item.get("longitude") is not None:
+                    distance_miles = haversine_miles(latitude, longitude, item["latitude"], item["longitude"])
+                item["distance_miles"] = distance_miles
+                enriched_libraries.append(item)
+
+            if latitude is not None and longitude is not None:
+                enriched_libraries.sort(
+                    key=lambda item: (
+                        item["distance_miles"] is None,
+                        item["distance_miles"] if item["distance_miles"] is not None else 10_000,
+                        item["id"],
+                    )
+                )
+
+            page = enriched_libraries[offset : offset + limit]
+            self.send_json(
+                {
+                    "api_version": PUBLIC_API_VERSION,
+                    "query": {
+                        "q": query,
+                        "latitude": latitude,
+                        "longitude": longitude,
+                        "location_label": location_label,
+                        "limit": limit,
+                        "offset": offset,
+                    },
+                    "count": len(page),
+                    "total": len(enriched_libraries),
+                    "libraries": page,
+                },
+                headers=headers,
+            )
+        except ValueError as error:
+            self.send_json({"error": str(error)}, HTTPStatus.BAD_REQUEST, headers)
+
+    def handle_public_library_detail(self, library_id: int, headers: dict[str, str]) -> None:
+        libraries = list_libraries()
+        library = next((item for item in libraries if int(item["id"]) == library_id), None)
+        if not library:
+            self.send_json({"error": f"Library {library_id} was not found."}, HTTPStatus.NOT_FOUND, headers)
+            return
+
+        self.send_json(
+            {
+                "api_version": PUBLIC_API_VERSION,
+                "library": library,
+                "books": list_library_books(library_id),
+            },
+            headers=headers,
+        )
 
     def handle_analyze_photo(self) -> None:
         try:

@@ -117,8 +117,9 @@ function libraryLocationLabel(library) {
   if (library?.location_label) {
     return library.location_label;
   }
-  return libraryHasCoordinates(library)
-    ? `${formatNumber(library.latitude)}°, ${formatNumber(library.longitude)}°`
+  const coordinates = libraryMarkerCoordinates(library);
+  return coordinates
+    ? `${formatNumber(coordinates[0])}°, ${formatNumber(coordinates[1])}°`
     : "Coordinates missing";
 }
 
@@ -166,8 +167,14 @@ async function lookupZipCode(value) {
   return { latitude, longitude, label, zipCode };
 }
 
+function libraryMarkerCoordinates(library) {
+  const latitude = Number(library?.marker_latitude ?? library?.latitude);
+  const longitude = Number(library?.marker_longitude ?? library?.longitude);
+  return Number.isFinite(latitude) && Number.isFinite(longitude) ? [latitude, longitude] : null;
+}
+
 function libraryHasCoordinates(library) {
-  return library.latitude !== null && library.latitude !== undefined && library.longitude !== null && library.longitude !== undefined;
+  return Boolean(libraryMarkerCoordinates(library));
 }
 
 function libraryPhoto(library) {
@@ -248,7 +255,7 @@ function renderMap(libraries) {
   const mappedLibraries = libraries.filter(libraryHasCoordinates);
   const markerCoordinates = [];
   mappedLibraries.forEach((library) => {
-    const coordinates = [library.latitude, library.longitude];
+    const coordinates = libraryMarkerCoordinates(library);
     const marker = L.marker(coordinates, { icon: markerIcon(library.book_count) })
       .addTo(state.map)
       .bindPopup(popupHtml(library), {
@@ -305,7 +312,7 @@ function renderLibraryList(libraries) {
       const focusMarker = () => {
         const marker = state.markers.get(library.id);
         if (state.map && marker) {
-          state.map.flyTo([library.latitude, library.longitude], Math.max(state.map.getZoom(), 15), { duration: 0.8 });
+          state.map.flyTo(libraryMarkerCoordinates(library), Math.max(state.map.getZoom(), 15), { duration: 0.8 });
           marker.openPopup();
         }
       };

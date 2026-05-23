@@ -398,15 +398,90 @@ class AppTests(unittest.TestCase):
                 app.DB_PATH = original_db_path
                 gc.collect()
 
-    def test_mobile_contribution_endpoint_populates_central_search(self) -> None:
+    def test_export_keeps_map_marker_on_photo_gps_when_official_address_exists(self) -> None:
         original_data_dir = app.DATA_DIR
         original_uploads_dir = app.UPLOADS_DIR
         original_db_path = app.DB_PATH
+        original_map_output_path = app.MAP_OUTPUT_PATH
+        original_pages_data_path = app.PAGES_DATA_PATH
+        original_lookup = app.lookup_lfl_registration
+        original_pages_env = os.environ.get("LIBRARY_PAGES_DATA_PATH")
 
         with tempfile.TemporaryDirectory() as tempdir:
             app.DATA_DIR = Path(tempdir)
             app.UPLOADS_DIR = app.DATA_DIR / "uploads"
             app.DB_PATH = app.DATA_DIR / "atlas.db"
+            app.MAP_OUTPUT_PATH = app.DATA_DIR / "library-map.svg"
+            app.PAGES_DATA_PATH = app.DATA_DIR / "atlas-data.json"
+            os.environ["LIBRARY_PAGES_DATA_PATH"] = str(app.PAGES_DATA_PATH)
+
+            def fake_lookup(charter_number: str, latitude: float | None, longitude: float | None) -> dict[str, object]:
+                return {
+                    "status": "matched",
+                    "charter_number": charter_number,
+                    "checked_at": "2026-05-23T12:00:00+00:00",
+                    "distance_miles": 0.01,
+                    "street": "1000 Large Complex Drive",
+                    "city": "Gaithersburg",
+                    "state": "MD",
+                    "postal_code": "20877",
+                }
+
+            app.lookup_lfl_registration = fake_lookup
+            try:
+                app.initialize_database()
+                app.insert_library(
+                    {
+                        "library_name": "Complex Entrance Shelf",
+                        "charter_number": "Charter # 123456",
+                        "geolocation": {
+                            "latitude": 39.123456,
+                            "longitude": -77.234567,
+                            "source": "photo_exif",
+                            "confidence": 0.95,
+                        },
+                        "books": [],
+                    }
+                )
+
+                pages_data = json.loads(app.PAGES_DATA_PATH.read_text(encoding="utf-8"))
+                exported = pages_data["libraries"][0]
+                self.assertEqual(exported["official_address"], "1000 Large Complex Drive, Gaithersburg, MD 20877")
+                self.assertAlmostEqual(exported["marker_latitude"], 39.123456)
+                self.assertAlmostEqual(exported["marker_longitude"], -77.234567)
+                self.assertAlmostEqual(exported["latitude"], 39.123456)
+                self.assertAlmostEqual(exported["longitude"], -77.234567)
+
+                api_library = app.list_libraries()[0]
+                self.assertEqual(api_library["official_address"], "1000 Large Complex Drive, Gaithersburg, MD 20877")
+                self.assertAlmostEqual(api_library["marker_latitude"], 39.123456)
+                self.assertAlmostEqual(api_library["marker_longitude"], -77.234567)
+            finally:
+                app.lookup_lfl_registration = original_lookup
+                if original_pages_env is None:
+                    os.environ.pop("LIBRARY_PAGES_DATA_PATH", None)
+                else:
+                    os.environ["LIBRARY_PAGES_DATA_PATH"] = original_pages_env
+                app.DATA_DIR = original_data_dir
+                app.UPLOADS_DIR = original_uploads_dir
+                app.DB_PATH = original_db_path
+                app.MAP_OUTPUT_PATH = original_map_output_path
+                app.PAGES_DATA_PATH = original_pages_data_path
+                gc.collect()
+
+    def test_mobile_contribution_endpoint_populates_central_search(self) -> None:
+        original_data_dir = app.DATA_DIR
+        original_uploads_dir = app.UPLOADS_DIR
+        original_db_path = app.DB_PATH
+        original_map_output_path = app.MAP_OUTPUT_PATH
+        original_pages_data_path = app.PAGES_DATA_PATH
+
+        with tempfile.TemporaryDirectory() as tempdir:
+            app.DATA_DIR = Path(tempdir)
+            app.UPLOADS_DIR = app.DATA_DIR / "uploads"
+            app.DB_PATH = app.DATA_DIR / "atlas.db"
+            app.MAP_OUTPUT_PATH = app.DATA_DIR / "library-map.svg"
+            app.PAGES_DATA_PATH = app.DATA_DIR / "atlas-data.json"
 
             try:
                 app.initialize_database()
@@ -510,6 +585,102 @@ class AppTests(unittest.TestCase):
                 app.DATA_DIR = original_data_dir
                 app.UPLOADS_DIR = original_uploads_dir
                 app.DB_PATH = original_db_path
+                app.MAP_OUTPUT_PATH = original_map_output_path
+                app.PAGES_DATA_PATH = original_pages_data_path
+
+    def test_public_search_api_accepts_zip_and_returns_rate_headers(self) -> None:
+        original_data_dir = app.DATA_DIR
+        original_uploads_dir = app.UPLOADS_DIR
+        original_db_path = app.DB_PATH
+        original_map_output_path = app.MAP_OUTPUT_PATH
+        original_pages_data_path = app.PAGES_DATA_PATH
+
+        with tempfile.TemporaryDirectory() as tempdir:
+            app.DATA_DIR = Path(tempdir)
+            app.UPLOADS_DIR = app.DATA_DIR / "uploads"
+            app.DB_PATH = app.DATA_DIR / "atlas.db"
+            app.MAP_OUTPUT_PATH = app.DATA_DIR / "library-map.svg"
+            app.PAGES_DATA_PATH = app.DATA_DIR / "atlas-data.json"
+            app.PUBLIC_API_RATE_LIMIT_BUCKETS.clear()
+
+            try:
+                app.initialize_database()
+                app.insert_library(
+                    {
+                        "library_name": "Community API Shelf",
+                        "library_description": "A test shelf for public API users.",
+                        "geolocation": {"latitude": 39.1434, "longitude": -77.2014, "source": "photo_exif"},
+                        "books": [{"title": "Parable of the Sower", "author": "Octavia Butler", "genre": "Fiction"}],
+                    }
+                )
+                server = app.ThreadingHTTPServer(("127.0.0.1", 0), app.LibraryAtlasHandler)
+                thread = threading.Thread(target=server.serve_forever, daemon=True)
+                thread.start()
+
+                try:
+                    connection = http.client.HTTPConnection("127.0.0.1", server.server_port, timeout=5)
+                    connection.request("GET", "/api/v1/search?q=Parable&zip=20877&radius_miles=5&limit=5")
+                    response = connection.getresponse()
+                    response_payload = json.loads(response.read().decode("utf-8"))
+                    remaining_header = response.getheader("X-RateLimit-Remaining")
+                    connection.close()
+
+                    self.assertEqual(response.status, 200, response_payload)
+                    self.assertEqual(response_payload["api_version"], "v1")
+                    self.assertEqual(response_payload["count"], 1)
+                    self.assertEqual(response_payload["results"][0]["title"], "Parable of the Sower")
+                    self.assertEqual(response_payload["results"][0]["library"]["csn"], "CSN-1")
+                    self.assertIsNotNone(remaining_header)
+                finally:
+                    server.shutdown()
+                    thread.join(timeout=2)
+                    server.server_close()
+                    gc.collect()
+            finally:
+                app.DATA_DIR = original_data_dir
+                app.UPLOADS_DIR = original_uploads_dir
+                app.DB_PATH = original_db_path
+                app.MAP_OUTPUT_PATH = original_map_output_path
+                app.PAGES_DATA_PATH = original_pages_data_path
+                app.PUBLIC_API_RATE_LIMIT_BUCKETS.clear()
+
+    def test_public_api_rate_limit_returns_429(self) -> None:
+        original_limit = app.PUBLIC_API_RATE_LIMIT_REQUESTS
+        original_window = app.PUBLIC_API_RATE_LIMIT_WINDOW_SECONDS
+        app.PUBLIC_API_RATE_LIMIT_REQUESTS = 1
+        app.PUBLIC_API_RATE_LIMIT_WINDOW_SECONDS = 60
+        app.PUBLIC_API_RATE_LIMIT_BUCKETS.clear()
+
+        server = app.ThreadingHTTPServer(("127.0.0.1", 0), app.LibraryAtlasHandler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+
+        try:
+            first = http.client.HTTPConnection("127.0.0.1", server.server_port, timeout=5)
+            first.request("GET", "/api/v1/libraries")
+            first_response = first.getresponse()
+            first_response.read()
+            first.close()
+
+            second = http.client.HTTPConnection("127.0.0.1", server.server_port, timeout=5)
+            second.request("GET", "/api/v1/libraries")
+            second_response = second.getresponse()
+            second_payload = json.loads(second_response.read().decode("utf-8"))
+            retry_after = second_response.getheader("Retry-After")
+            second.close()
+
+            self.assertEqual(first_response.status, 200)
+            self.assertEqual(second_response.status, 429)
+            self.assertIn("Rate limit", second_payload["error"])
+            self.assertIsNotNone(retry_after)
+        finally:
+            server.shutdown()
+            thread.join(timeout=2)
+            server.server_close()
+            app.PUBLIC_API_RATE_LIMIT_REQUESTS = original_limit
+            app.PUBLIC_API_RATE_LIMIT_WINDOW_SECONDS = original_window
+            app.PUBLIC_API_RATE_LIMIT_BUCKETS.clear()
+            gc.collect()
 
     def test_mobile_contribution_without_gps_is_rejected_and_cleaned(self) -> None:
         original_data_dir = app.DATA_DIR

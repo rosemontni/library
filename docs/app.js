@@ -83,7 +83,8 @@ function libraryLocationLabel(library) {
   if (library?.location_label) {
     return library.location_label;
   }
-  return `${formatCoordinate(library?.latitude)}, ${formatCoordinate(library?.longitude)}`;
+  const coordinates = libraryMarkerCoordinates(library);
+  return coordinates ? `${formatCoordinate(coordinates[0])}, ${formatCoordinate(coordinates[1])}` : "Coordinates missing";
 }
 
 function formatCount(count, singular, plural = `${singular}s`) {
@@ -140,8 +141,14 @@ async function lookupZipCode(value) {
   return { latitude, longitude, label, zipCode };
 }
 
+function libraryMarkerCoordinates(library) {
+  const latitude = Number(library?.marker_latitude ?? library?.latitude);
+  const longitude = Number(library?.marker_longitude ?? library?.longitude);
+  return Number.isFinite(latitude) && Number.isFinite(longitude) ? [latitude, longitude] : null;
+}
+
 function hasCoordinates(library) {
-  return library && library.latitude !== null && library.latitude !== undefined && library.longitude !== null && library.longitude !== undefined;
+  return Boolean(libraryMarkerCoordinates(library));
 }
 
 function toTitleCase(value) {
@@ -390,7 +397,8 @@ function searchBooks(query) {
 
       let distanceMiles = null;
       if (origin && library && hasCoordinates(library)) {
-        distanceMiles = haversineMiles(origin.latitude, origin.longitude, Number(library.latitude), Number(library.longitude));
+        const coordinates = libraryMarkerCoordinates(library);
+        distanceMiles = haversineMiles(origin.latitude, origin.longitude, coordinates[0], coordinates[1]);
         if (hasRadius && distanceMiles > radius) {
           return null;
         }
@@ -482,7 +490,7 @@ function renderMap(libraries) {
 
   const coordinates = [];
   libraries.filter(hasCoordinates).forEach((library) => {
-    const position = [Number(library.latitude), Number(library.longitude)];
+    const position = libraryMarkerCoordinates(library);
     const marker = L.marker(position, { icon: markerIcon(library.book_count) })
       .addTo(state.map)
       .bindPopup(popupHtml(library), {
@@ -511,7 +519,7 @@ function focusLibrary(libraryId) {
   if (!library || !marker || !state.map || !hasCoordinates(library)) {
     return;
   }
-  state.map.flyTo([Number(library.latitude), Number(library.longitude)], Math.max(state.map.getZoom(), 15), { duration: 0.7 });
+  state.map.flyTo(libraryMarkerCoordinates(library), Math.max(state.map.getZoom(), 15), { duration: 0.7 });
   marker.openPopup();
 }
 
