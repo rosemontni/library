@@ -647,40 +647,52 @@ class AppTests(unittest.TestCase):
     def test_public_api_rate_limit_returns_429(self) -> None:
         original_limit = app.PUBLIC_API_RATE_LIMIT_REQUESTS
         original_window = app.PUBLIC_API_RATE_LIMIT_WINDOW_SECONDS
+        original_data_dir = app.DATA_DIR
+        original_uploads_dir = app.UPLOADS_DIR
+        original_db_path = app.DB_PATH
         app.PUBLIC_API_RATE_LIMIT_REQUESTS = 1
         app.PUBLIC_API_RATE_LIMIT_WINDOW_SECONDS = 60
         app.PUBLIC_API_RATE_LIMIT_BUCKETS.clear()
 
-        server = app.ThreadingHTTPServer(("127.0.0.1", 0), app.LibraryAtlasHandler)
-        thread = threading.Thread(target=server.serve_forever, daemon=True)
-        thread.start()
+        with tempfile.TemporaryDirectory() as tempdir:
+            app.DATA_DIR = Path(tempdir)
+            app.UPLOADS_DIR = app.DATA_DIR / "uploads"
+            app.DB_PATH = app.DATA_DIR / "atlas.db"
+            app.initialize_database()
 
-        try:
-            first = http.client.HTTPConnection("127.0.0.1", server.server_port, timeout=5)
-            first.request("GET", "/api/v1/libraries")
-            first_response = first.getresponse()
-            first_response.read()
-            first.close()
+            server = app.ThreadingHTTPServer(("127.0.0.1", 0), app.LibraryAtlasHandler)
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
 
-            second = http.client.HTTPConnection("127.0.0.1", server.server_port, timeout=5)
-            second.request("GET", "/api/v1/libraries")
-            second_response = second.getresponse()
-            second_payload = json.loads(second_response.read().decode("utf-8"))
-            retry_after = second_response.getheader("Retry-After")
-            second.close()
+            try:
+                first = http.client.HTTPConnection("127.0.0.1", server.server_port, timeout=5)
+                first.request("GET", "/api/v1/libraries")
+                first_response = first.getresponse()
+                first_response.read()
+                first.close()
 
-            self.assertEqual(first_response.status, 200)
-            self.assertEqual(second_response.status, 429)
-            self.assertIn("Rate limit", second_payload["error"])
-            self.assertIsNotNone(retry_after)
-        finally:
-            server.shutdown()
-            thread.join(timeout=2)
-            server.server_close()
-            app.PUBLIC_API_RATE_LIMIT_REQUESTS = original_limit
-            app.PUBLIC_API_RATE_LIMIT_WINDOW_SECONDS = original_window
-            app.PUBLIC_API_RATE_LIMIT_BUCKETS.clear()
-            gc.collect()
+                second = http.client.HTTPConnection("127.0.0.1", server.server_port, timeout=5)
+                second.request("GET", "/api/v1/libraries")
+                second_response = second.getresponse()
+                second_payload = json.loads(second_response.read().decode("utf-8"))
+                retry_after = second_response.getheader("Retry-After")
+                second.close()
+
+                self.assertEqual(first_response.status, 200)
+                self.assertEqual(second_response.status, 429)
+                self.assertIn("Rate limit", second_payload["error"])
+                self.assertIsNotNone(retry_after)
+            finally:
+                server.shutdown()
+                thread.join(timeout=2)
+                server.server_close()
+                app.DATA_DIR = original_data_dir
+                app.UPLOADS_DIR = original_uploads_dir
+                app.DB_PATH = original_db_path
+                app.PUBLIC_API_RATE_LIMIT_REQUESTS = original_limit
+                app.PUBLIC_API_RATE_LIMIT_WINDOW_SECONDS = original_window
+                app.PUBLIC_API_RATE_LIMIT_BUCKETS.clear()
+                gc.collect()
 
     def test_mobile_contribution_without_gps_is_rejected_and_cleaned(self) -> None:
         original_data_dir = app.DATA_DIR
