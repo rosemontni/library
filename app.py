@@ -93,10 +93,17 @@ BOX_TYPE_ALIASES = {
     "little art gallery": "art_gallery",
     "free art gallery": "art_gallery",
     "community art gallery": "art_gallery",
+    "pantry": "free_pantry",
+    "free pantry": "free_pantry",
+    "little pantry": "free_pantry",
+    "little free pantry": "free_pantry",
+    "community pantry": "free_pantry",
+    "food pantry": "free_pantry",
 }
 BOX_TYPE_LABELS = {
     "library": "Little Library",
     "art_gallery": "Little Art Gallery",
+    "free_pantry": "Little Free Pantry",
 }
 
 LOCAL_ZIP_CENTROIDS: dict[str, dict[str, Any]] = {
@@ -134,7 +141,7 @@ PUBLIC_API_RATE_LIMIT_LOCK = threading.Lock()
 OPENAI_API_URL = "https://api.openai.com/v1/responses"
 DEFAULT_OPENAI_MODEL = os.getenv("OPENAI_VISION_MODEL", "gpt-4.1-mini")
 
-BOOK_FIELDS = [
+MODEL_BOOK_FIELDS = [
     "title",
     "author",
     "isbn",
@@ -146,6 +153,7 @@ BOOK_FIELDS = [
     "confidence",
     "notes",
 ]
+BOOK_FIELDS = [*MODEL_BOOK_FIELDS, "last_seen_at"]
 
 ANALYSIS_SCHEMA: dict[str, Any] = {
     "type": "object",
@@ -171,7 +179,7 @@ ANALYSIS_SCHEMA: dict[str, Any] = {
             "items": {
                 "type": "object",
                 "additionalProperties": False,
-                "required": BOOK_FIELDS,
+                "required": MODEL_BOOK_FIELDS,
                 "properties": {
                     "title": {"type": "string"},
                     "author": {"type": "string"},
@@ -196,7 +204,7 @@ Do not invent books that are not visible.
 If you are unsure, keep a field blank and lower the confidence.
 Only include books that are visibly present in the photo.
 Do not guess an ISBN unless it is clearly visible or highly reliable from the exact edition clues.
-Use box_type = "library" for book-sharing boxes and box_type = "art_gallery" for little art galleries or similar art exchanges.
+Use box_type = "library" for book-sharing boxes, "art_gallery" for little art galleries or similar art exchanges, and "free_pantry" for little free pantries or similar mutual-aid food boxes.
 Use concise phrases.
 """
 
@@ -207,7 +215,7 @@ Return JSON with:
 - library_description: one or two sentences describing the library setup and condition
 - photo_summary: a plain-language summary of what is in the image
 - place_clues: visible clues such as street signs, murals, house numbers, nearby businesses, or neighborhood hints
-- box_type: "library" for book-sharing shelves or "art_gallery" for little art galleries / free art exchanges
+- box_type: "library" for book-sharing shelves, "art_gallery" for little art galleries / free art exchanges, or "free_pantry" for little free pantries / food-sharing boxes
 - charter_number: the Little Free Library charter number if visible, usually near a "Charter #" label; otherwise blank
 - books: the visible books with metadata fields title, author, isbn, publisher, published_year, genre, format, condition, confidence, notes
 
@@ -630,6 +638,29 @@ def clamp_confidence(value: Any) -> float:
     return max(0.0, min(1.0, numeric))
 
 
+def normalize_seen_value(value: Any) -> str:
+    text = str(value or "").strip()
+    if not text:
+        return ""
+
+    if re.fullmatch(r"\d{4}-\d{2}-\d{2}", text):
+        try:
+            datetime.fromisoformat(text)
+        except ValueError:
+            return ""
+        return text
+
+    candidate = text[:-1] + "+00:00" if text.endswith("Z") else text
+    try:
+        parsed = datetime.fromisoformat(candidate)
+    except ValueError:
+        return ""
+
+    if parsed.tzinfo is None:
+        return parsed.isoformat(timespec="seconds")
+    return parsed.isoformat(timespec="seconds")
+
+
 def create_ingestion_run(
     connection: sqlite3.Connection,
     *,
@@ -742,6 +773,8 @@ def sanitize_book(raw_book: dict[str, Any]) -> dict[str, Any]:
     for field in BOOK_FIELDS:
         if field == "confidence":
             book[field] = clamp_confidence(raw_book.get(field))
+        elif field == "last_seen_at":
+            book[field] = normalize_seen_value(raw_book.get(field))
         else:
             book[field] = str(raw_book.get(field, "") or "").strip()
     return book
@@ -900,6 +933,69 @@ def photo_records_from_saved(saved: list[dict[str, Any]]) -> list[dict[str, Any]
             }
         )
     return records
+
+
+def resolve_saved_upload_path(photo_path: Any) -> Path:
+    relative_path = str(photo_path or "").strip().lstrip("/").replace("\\", "/")
+    if not relative_path.startswith("data/uploads/"):
+        raise ValueError("Draft photo paths must point to saved uploads under data/uploads.")
+
+    resolved = (BASE_DIR / Path(relative_path)).resolve()
+    uploads_root = UPLOADS_DIR.resolve()
+    if resolved != uploads_root and uploads_root not in resolved.parents:
+        raise ValueError("Draft photo paths must stay within data/uploads.")
+    if not resolved.exists() or not resolved.is_file():
+        raise ValueError(f"Saved draft photo is missing: {relative_path}")
+    return resolved
+
+
+def load_saved_photo_inputs(payload: dict[str, Any]) -> list[dict[str, Any]]:
+    def role_paths(plural_key: str, singular_key: str) -> list[str]:
+        paths = normalize_photo_paths(payload.get(plural_key))
+        single = str(payload.get(singular_key) or "").strip().lstrip("/")
+        if single and single not in paths:
+            paths.append(single)
+        return paths
+
+    metadata_by_path: dict[str, dict[str, Any]] = {}
+    for record in payload.get("photo_records") or []:
+        if not isinstance(record, dict):
+            continue
+        path = str(record.get("photo_path") or "").strip().lstrip("/").replace("\\", "/")
+        if path:
+            metadata_by_path[path] = record
+
+    ordered_paths = [
+        ("books_photo", role_paths("books_photo_paths", "books_photo_path")),
+        ("location_photo", role_paths("location_photo_paths", "location_photo_path")),
+        ("supplemental_photo", role_paths("additional_photo_paths", "additional_photo_path")),
+        ("photo", role_paths("photo_paths", "photo_path")),
+    ]
+
+    loaded: list[dict[str, Any]] = []
+    seen_paths: set[str] = set()
+    for role, paths in ordered_paths:
+        for photo_path in paths:
+            cleaned_path = str(photo_path or "").strip().lstrip("/").replace("\\", "/")
+            if not cleaned_path or cleaned_path in seen_paths:
+                continue
+            seen_paths.add(cleaned_path)
+            resolved = resolve_saved_upload_path(cleaned_path)
+            metadata = metadata_by_path.get(cleaned_path, {})
+            loaded.append(
+                {
+                    "role": role,
+                    "photo_path": cleaned_path,
+                    "photo_url": photo_url_from_path(cleaned_path),
+                    "original_filename": metadata.get("original_filename") or resolved.name,
+                    "content_type": metadata.get("content_type") or mimetypes.guess_type(resolved.name)[0] or "image/jpeg",
+                    "data": resolved.read_bytes(),
+                }
+            )
+
+    if not loaded:
+        raise ValueError("No saved draft photos were available for analysis.")
+    return loaded
 
 
 def remove_saved_uploads(saved: list[dict[str, Any]]) -> None:
@@ -1489,6 +1585,18 @@ def normalize_model_analysis(data: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def empty_analysis_output() -> dict[str, Any]:
+    return {
+        "library_name_suggestion": "",
+        "library_description": "",
+        "photo_summary": "",
+        "place_clues": [],
+        "box_type": DEFAULT_BOX_TYPE,
+        "charter_number": "",
+        "books": [],
+    }
+
+
 def build_analysis_response(
     filename: str,
     books_photo_urls: list[str],
@@ -1500,15 +1608,7 @@ def build_analysis_response(
     charter_registration: dict[str, Any] | None,
     warnings: list[str],
 ) -> dict[str, Any]:
-    output = model_output or {
-        "library_name_suggestion": "",
-        "library_description": "",
-        "photo_summary": "",
-        "place_clues": [],
-        "box_type": DEFAULT_BOX_TYPE,
-        "charter_number": "",
-        "books": [],
-    }
+    output = model_output or empty_analysis_output()
 
     geolocation = (
         location.to_dict()
@@ -1544,6 +1644,114 @@ def build_analysis_response(
         "geolocation": geolocation,
         "books": output["books"],
         "warnings": warnings,
+    }
+
+
+def merge_analysis_into_draft(current_draft: dict[str, Any], model_output: dict[str, Any] | None) -> dict[str, Any]:
+    current_place_clues_raw = current_draft.get("place_clues") or []
+    if isinstance(current_place_clues_raw, str):
+        current_place_clues = [item.strip() for item in current_place_clues_raw.split(",") if item.strip()]
+    else:
+        current_place_clues = [str(item).strip() for item in current_place_clues_raw if str(item).strip()]
+
+    current_books = [
+        sanitize_book(book)
+        for book in (current_draft.get("books") or [])
+        if isinstance(book, dict)
+    ]
+    current_books = [book for book in current_books if book["title"]]
+
+    output = empty_analysis_output()
+    if model_output:
+        output.update(model_output)
+
+    merged_books = output.get("books") or current_books
+    if merged_books:
+        merged_books = [sanitize_book(book) for book in merged_books if isinstance(book, dict)]
+        merged_books = [book for book in merged_books if book["title"]]
+
+    return {
+        "library_name_suggestion": str(
+            output.get("library_name_suggestion")
+            or current_draft.get("library_name")
+            or current_draft.get("library_name_suggestion")
+            or ""
+        ).strip(),
+        "library_description": str(
+            output.get("library_description")
+            or current_draft.get("library_description")
+            or ""
+        ).strip(),
+        "photo_summary": str(
+            output.get("photo_summary")
+            or current_draft.get("photo_summary")
+            or ""
+        ).strip(),
+        "place_clues": output.get("place_clues") or current_place_clues,
+        "box_type": normalize_box_type((model_output or {}).get("box_type"), current_draft.get("box_type")),
+        "charter_number": normalize_charter_number(output.get("charter_number"))
+        or normalize_charter_number(current_draft.get("charter_number")),
+        "books": merged_books,
+    }
+
+
+def find_existing_library_match(
+    connection: sqlite3.Connection,
+    payload: dict[str, Any],
+    charter_number: str,
+    latitude: float | None,
+    longitude: float | None,
+    box_type: str,
+) -> dict[str, Any]:
+    if latitude is None or longitude is None:
+        return {}
+
+    library_id = find_existing_library_id(
+        connection,
+        payload,
+        charter_number,
+        latitude,
+        longitude,
+        box_type,
+    )
+    if not library_id:
+        return {}
+
+    row = connection.execute(
+        """
+        SELECT
+            id,
+            name,
+            COALESCE(box_type, 'library') AS box_type,
+            description,
+            latitude,
+            longitude,
+            charter_number
+        FROM libraries
+        WHERE id = ?
+        """,
+        (library_id,),
+    ).fetchone()
+    if not row:
+        return {}
+
+    distance_miles = None
+    if row["latitude"] is not None and row["longitude"] is not None:
+        distance_miles = haversine_miles(latitude, longitude, row["latitude"], row["longitude"])
+
+    stored_charter = normalize_charter_number(row["charter_number"])
+    match_reason = "charter_number" if charter_number and stored_charter == charter_number else "nearby_coordinates"
+
+    return {
+        "library_id": int(row["id"]),
+        "csn": f"CSN-{row['id']}",
+        "name": row["name"],
+        "box_type": row["box_type"] or DEFAULT_BOX_TYPE,
+        "box_type_label": box_type_label(row["box_type"]),
+        "description": row["description"] or "",
+        "distance_miles": distance_miles,
+        "charter_number": stored_charter,
+        "match_reason": match_reason,
     }
 
 
@@ -1726,6 +1934,7 @@ def upsert_library_inventory(
         if not identity or identity in seen_identities:
             continue
         seen_identities.add(identity)
+        book_last_seen_at = normalize_seen_value(book.get("last_seen_at")) or now
         search_blob = build_search_blob(
             book["title"],
             book["author"],
@@ -1767,7 +1976,7 @@ def upsert_library_inventory(
                     book["confidence"],
                     book["notes"],
                     search_blob,
-                    now,
+                    book_last_seen_at,
                     existing["id"],
                 ),
             )
@@ -1805,8 +2014,8 @@ def upsert_library_inventory(
                     book["condition"],
                     book["confidence"],
                     book["notes"],
-                    now,
-                    now,
+                    book_last_seen_at,
+                    book_last_seen_at,
                     search_blob,
                 ),
             )
@@ -2051,6 +2260,7 @@ def search_books(
             b.condition,
             b.confidence,
             b.notes,
+            b.last_seen_at,
             b.search_blob,
             l.id AS library_id,
             l.name AS library_name,
@@ -2111,6 +2321,7 @@ def search_books(
                 "condition": row["condition"],
                 "confidence": row["confidence"],
                 "notes": row["notes"],
+                "last_seen_at": row["last_seen_at"] or "",
                 "library": {
                     "id": row["library_id"],
                     "csn": f"CSN-{row['library_id']}",
@@ -2160,6 +2371,7 @@ def list_library_books(library_id: int) -> list[dict[str, Any]]:
             condition,
             confidence,
             notes,
+            last_seen_at,
             status
         FROM books
         WHERE library_id = ?
@@ -2182,6 +2394,7 @@ def list_library_books(library_id: int) -> list[dict[str, Any]]:
             "condition": row["condition"],
             "confidence": row["confidence"],
             "notes": row["notes"],
+            "last_seen_at": row["last_seen_at"] or "",
             "status": row["status"] or "active",
         }
         for row in rows
@@ -2299,6 +2512,7 @@ def build_public_openapi_spec() -> dict[str, Any]:
             "publisher": {"type": "string"},
             "published_year": {"type": "string"},
             "genre": {"type": "string"},
+            "last_seen_at": {"type": "string"},
             "library": library_schema,
             "distance_miles": {"type": ["number", "null"]},
         },
@@ -2459,6 +2673,12 @@ class LibraryAtlasHandler(BaseHTTPRequestHandler):
     def do_POST(self) -> None:  # noqa: N802
         parsed = urlparse(self.path)
 
+        if parsed.path == "/api/photo-draft":
+            self.handle_photo_draft()
+            return
+        if parsed.path == "/api/photo-draft/ai":
+            self.handle_enrich_photo_draft()
+            return
         if parsed.path == "/api/analyze-photo":
             self.handle_analyze_photo()
             return
@@ -2649,7 +2869,7 @@ class LibraryAtlasHandler(BaseHTTPRequestHandler):
             headers=headers,
         )
 
-    def handle_analyze_photo(self) -> None:
+    def respond_photo_draft_from_uploads(self, run_ai: bool) -> None:
         try:
             fields, files = parse_multipart_form_data(self)
             books_uploads = file_list(files, "books_photo", "books_photo[]")
@@ -2676,23 +2896,36 @@ class LibraryAtlasHandler(BaseHTTPRequestHandler):
                 )
 
             model_output: dict[str, Any] | None = None
-            try:
-                analysis_photos = saved_books or all_saved
-                image_inputs = [
-                    {
-                        "data": item["data"],
-                        "mime_type": item["content_type"] or "image/jpeg",
-                        "role": item["role"],
-                    }
-                    for item in analysis_photos
-                ]
-                model_output = call_openai_for_photos(image_inputs)
-            except RuntimeError as error:
-                warnings.append(
-                    f"Automated book extraction is unavailable right now: {error}. You can still add or correct books manually before saving."
-                )
+            ai_completed = False
+            if run_ai:
+                try:
+                    analysis_photos = saved_books or all_saved
+                    image_inputs = [
+                        {
+                            "data": item["data"],
+                            "mime_type": item["content_type"] or "image/jpeg",
+                            "role": item["role"],
+                        }
+                        for item in analysis_photos
+                    ]
+                    model_output = call_openai_for_photos(image_inputs)
+                    ai_completed = True
+                except RuntimeError as error:
+                    warnings.append(
+                        f"Automated book extraction is unavailable right now: {error}. You can still add or correct books manually before saving."
+                    )
 
             charter_number = normalize_charter_number((model_output or {}).get("charter_number"))
+            draft_box_type = normalize_box_type((model_output or {}).get("box_type"))
+            with get_connection() as connection:
+                existing_library_match = find_existing_library_match(
+                    connection,
+                    {},
+                    charter_number,
+                    location.latitude if location else None,
+                    location.longitude if location else None,
+                    draft_box_type,
+                )
             charter_registration = lookup_lfl_registration(
                 charter_number,
                 location.latitude if location else None,
@@ -2720,12 +2953,168 @@ class LibraryAtlasHandler(BaseHTTPRequestHandler):
                 charter_registration,
                 warnings,
             )
+            if existing_library_match and not ai_completed:
+                response_payload["library_name"] = existing_library_match["name"] or response_payload["library_name"]
+                response_payload["box_type"] = existing_library_match["box_type"] or response_payload["box_type"]
+            response_payload["books_photo_path"] = saved_books[0]["photo_path"] if saved_books else ""
             response_payload["books_photo_paths"] = [item["photo_path"] for item in saved_books]
+            response_payload["location_photo_path"] = saved_locations[0]["photo_path"] if saved_locations else ""
             response_payload["location_photo_paths"] = [item["photo_path"] for item in saved_locations]
+            response_payload["additional_photo_path"] = saved_supplemental[0]["photo_path"] if saved_supplemental else ""
             response_payload["additional_photo_paths"] = [item["photo_path"] for item in saved_supplemental]
+            response_payload["photo_path"] = first_photo_path(
+                response_payload["location_photo_path"],
+                response_payload["books_photo_path"],
+                response_payload["additional_photo_path"],
+            )
             response_payload["photo_paths"] = [item["photo_path"] for item in all_saved]
+            response_payload["photo_records"] = photo_records_from_saved(all_saved)
             response_payload["icon_source_photo_path"] = gps_photo["photo_path"]
+            response_payload["existing_library_match"] = existing_library_match
+            response_payload["analysis_mode"] = "ai_enriched" if ai_completed else "local_draft"
+            response_payload["can_run_ai"] = bool(os.getenv("OPENAI_API_KEY"))
             self.send_json(response_payload)
+        except ValueError as error:
+            self.send_json({"error": str(error)}, HTTPStatus.BAD_REQUEST)
+        except Exception as error:  # pragma: no cover - defensive server guard
+            self.send_json({"error": f"Unexpected server error: {error}"}, HTTPStatus.INTERNAL_SERVER_ERROR)
+
+    def handle_photo_draft(self) -> None:
+        self.respond_photo_draft_from_uploads(run_ai=False)
+
+    def handle_analyze_photo(self) -> None:
+        self.respond_photo_draft_from_uploads(run_ai=True)
+
+    def handle_enrich_photo_draft(self) -> None:
+        try:
+            payload = parse_json_body(self)
+            if not isinstance(payload, dict):
+                self.send_json({"error": "Request body must be a JSON object."}, HTTPStatus.BAD_REQUEST)
+                return
+            saved_photos = load_saved_photo_inputs(payload)
+
+            raw_geo = payload.get("geolocation") or {}
+            latitude = to_float(raw_geo.get("latitude"))
+            longitude = to_float(raw_geo.get("longitude"))
+            location = None
+            if latitude is not None and longitude is not None:
+                location = GeoPoint(
+                    latitude=latitude,
+                    longitude=longitude,
+                    source=str(raw_geo.get("source") or "saved_draft").strip() or "saved_draft",
+                    confidence=clamp_confidence(raw_geo.get("confidence")),
+                    accuracy_meters=to_float(raw_geo.get("accuracy_meters")),
+                )
+
+            warnings = [str(item).strip() for item in (payload.get("warnings") or []) if str(item).strip()]
+            analysis_inputs = [item for item in saved_photos if item.get("role") == "books_photo"] or saved_photos
+
+            model_output: dict[str, Any] | None = None
+            ai_completed = False
+            try:
+                image_inputs = [
+                    {
+                        "data": item["data"],
+                        "mime_type": item["content_type"] or "image/jpeg",
+                        "role": item["role"],
+                    }
+                    for item in analysis_inputs
+                ]
+                model_output = call_openai_for_photos(image_inputs)
+                ai_completed = True
+            except RuntimeError as error:
+                warnings.append(
+                    f"Automated book extraction is unavailable right now: {error}. You can still add or correct books manually before saving."
+                )
+
+            merged_output = merge_analysis_into_draft(payload, model_output)
+            charter_number = normalize_charter_number(merged_output.get("charter_number"))
+            draft_box_type = normalize_box_type(merged_output.get("box_type"), payload.get("box_type"))
+
+            charter_registration = parse_json_object(payload.get("charter_registration"))
+            if charter_number and not charter_registration:
+                charter_registration = lookup_lfl_registration(
+                    charter_number,
+                    location.latitude if location else None,
+                    location.longitude if location else None,
+                )
+            elif charter_number and charter_registration:
+                charter_registration.setdefault("charter_number", charter_number)
+
+            if charter_registration.get("status") == "location_mismatch":
+                warnings.append(
+                    "The visible Little Free Library charter number was found in the public registry, but its public location does not match this upload closely."
+                )
+
+            with get_connection() as connection:
+                existing_library_match = find_existing_library_match(
+                    connection,
+                    payload,
+                    charter_number,
+                    location.latitude if location else None,
+                    location.longitude if location else None,
+                    draft_box_type,
+                )
+
+            books_photo_paths = normalize_photo_paths(payload.get("books_photo_paths"))
+            location_photo_paths = normalize_photo_paths(payload.get("location_photo_paths"))
+            additional_photo_paths = normalize_photo_paths(payload.get("additional_photo_paths"))
+            photo_paths = normalize_photo_paths(payload.get("photo_paths"))
+            if not photo_paths:
+                photo_paths = [item["photo_path"] for item in saved_photos]
+
+            filename = str(payload.get("photo_filename") or "").strip()
+            if not filename:
+                original_names = [item.get("original_filename") or Path(item["photo_path"]).name for item in saved_photos]
+                filename = ", ".join(original_names[:3])
+                if len(original_names) > 3:
+                    filename += f" +{len(original_names) - 3} more"
+
+            books_photo_urls = [photo_url_from_path(path) for path in books_photo_paths if photo_url_from_path(path)]
+            location_photo_urls = [photo_url_from_path(path) for path in location_photo_paths if photo_url_from_path(path)]
+            photo_urls = [photo_url_from_path(path) for path in photo_paths if photo_url_from_path(path)]
+
+            response_payload = build_analysis_response(
+                filename,
+                books_photo_urls,
+                location_photo_urls,
+                photo_urls,
+                location_photo_urls[0] if location_photo_urls else None,
+                location,
+                merged_output,
+                charter_registration,
+                warnings,
+            )
+            response_payload["books_photo_path"] = first_photo_path(books_photo_paths)
+            response_payload["books_photo_paths"] = books_photo_paths
+            response_payload["location_photo_path"] = first_photo_path(location_photo_paths)
+            response_payload["location_photo_paths"] = location_photo_paths
+            response_payload["additional_photo_path"] = first_photo_path(additional_photo_paths)
+            response_payload["additional_photo_paths"] = additional_photo_paths
+            response_payload["photo_path"] = first_photo_path(
+                payload.get("photo_path"),
+                response_payload["location_photo_path"],
+                response_payload["books_photo_path"],
+                response_payload["additional_photo_path"],
+                photo_paths,
+            )
+            response_payload["photo_paths"] = photo_paths
+            response_payload["photo_records"] = payload.get("photo_records") or []
+            response_payload["icon_source_photo_path"] = first_photo_path(
+                payload.get("icon_source_photo_path"),
+                payload.get("location_photo_path"),
+                payload.get("location_photo_paths"),
+                payload.get("books_photo_path"),
+                payload.get("books_photo_paths"),
+                payload.get("photo_path"),
+                payload.get("photo_paths"),
+            )
+            response_payload["existing_library_match"] = existing_library_match
+            response_payload["analysis_mode"] = "ai_enriched" if ai_completed else str(payload.get("analysis_mode") or "local_draft")
+            response_payload["can_run_ai"] = bool(os.getenv("OPENAI_API_KEY"))
+            self.send_json(response_payload)
+        except json.JSONDecodeError:
+            self.send_json({"error": "Request body must be valid JSON."}, HTTPStatus.BAD_REQUEST)
         except ValueError as error:
             self.send_json({"error": str(error)}, HTTPStatus.BAD_REQUEST)
         except Exception as error:  # pragma: no cover - defensive server guard

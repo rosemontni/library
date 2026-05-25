@@ -8,6 +8,7 @@
   --rust: #b65336;
   --rust-deep: #82331e;
   --gallery-marker: #5f57c8;
+  --pantry-marker: #227c70;
   --pine: #24584d;
   --mint: #dcecdf;
   --sky: #d9e9ef;
@@ -343,6 +344,11 @@ textarea {
   box-shadow: 0 14px 28px rgba(52, 48, 120, 0.28);
 }
 
+.atlas-marker-free-pantry span {
+  background: var(--pantry-marker);
+  box-shadow: 0 14px 28px rgba(28, 91, 82, 0.3);
+}
+
 .library-popup.leaflet-popup {
   margin-bottom: 28px;
 }
@@ -515,7 +521,8 @@ textarea {
   line-height: 1.6;
 }
 
-.capture-actions {
+.capture-actions,
+.draft-actions {
   display: flex;
   gap: 12px;
   align-items: center;
@@ -635,6 +642,7 @@ label span {
 }
 
 input,
+select,
 textarea {
   width: 100%;
   border: 1px solid rgba(31, 35, 33, 0.15);
@@ -645,6 +653,7 @@ textarea {
 }
 
 input:focus,
+select:focus,
 textarea:focus {
   outline: 2px solid rgba(164, 83, 52, 0.18);
   border-color: rgba(164, 83, 52, 0.45);
@@ -941,6 +950,7 @@ td input {
   }
 
   .capture-actions,
+  .draft-actions,
   .books-header,
   .result-head {
     flex-direction: column;

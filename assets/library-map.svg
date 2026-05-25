@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="675" viewBox="0 0 1200 675" role="img" aria-labelledby="title desc">
   <title id="title">Civitas Library map</title>
-  <desc id="desc">Map of 44 geolocated community boxes with numbered markers, Civitas Library Serial Numbers, descriptions, and content summaries.</desc>
+  <desc id="desc">Map of 46 geolocated community boxes with numbered markers, Civitas Library Serial Numbers, descriptions, and content summaries.</desc>
   <defs>
     <linearGradient id="paper" x1="0" x2="1" y1="0" y2="1">
       <stop offset="0" stop-color="#fff7e8"/>
@@ -21,7 +21,7 @@
   <rect width="1200" height="675" rx="34" fill="#263529"/>
   <rect x="18" y="18" width="1164" height="639" rx="30" fill="url(#paper)"/>
   <text x="48" y="68" fill="#1f2d24" font-family="Georgia, serif" font-size="39" font-weight="700">Civitas Library</text>
-  <text x="50" y="99" class="small" font-size="18">Generated map snapshot: 44 community boxes, 539 books, CSN = database serial ID, centered near 40.7369, -76.5133</text>
+  <text x="50" y="99" class="small" font-size="18">Generated map snapshot: 46 community boxes, 587 books, CSN = database serial ID, centered near 40.7418, -76.6901</text>
 
   <g>
     <rect x="48" y="126" width="752" height="484" rx="28" fill="url(#park)" stroke="#253529" stroke-width="4"/>
@@ -314,6 +314,18 @@
       <path d="M0 -29c-18 0-32 14-32 32 0 25 32 58 32 58S32 28 32 3C32 -15 18 -29 0 -29z" fill="#416c9f" stroke="#213226" stroke-width="4"/>
       <circle cx="0" cy="2" r="18" fill="#fffaf0"/>
       <text x="0" y="9" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" font-weight="800" fill="#213226">44</text>
+    </g>
+    <g class="marker" transform="translate(356.32 473.06)">
+      <title>CSN-46 - Red Little Free Pantry: Little Free Pantry, food pantry. Red curbside Little Free Pantry box in a leafy residential spot, stocked with dry food, tuna l...</title>
+      <path d="M0 -29c-18 0-32 14-32 32 0 25 32 58 32 58S32 28 32 3C32 -15 18 -29 0 -29z" fill="#227c70" stroke="#213226" stroke-width="4"/>
+      <circle cx="0" cy="2" r="18" fill="#fffaf0"/>
+      <text x="0" y="9" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" font-weight="800" fill="#213226">45</text>
+    </g>
+    <g class="marker" transform="translate(327.05 430.06)">
+      <title>CSN-47 - Ann Arbor Indoor Free Book Shelf: Little Library, 48 books. Indoor four-shelf wooden bookcase on casters, beside a blue recycling bin with University of M...</title>
+      <path d="M0 -29c-18 0-32 14-32 32 0 25 32 58 32 58S32 28 32 3C32 -15 18 -29 0 -29z" fill="#7a633c" stroke="#213226" stroke-width="4"/>
+      <circle cx="0" cy="2" r="18" fill="#fffaf0"/>
+      <text x="0" y="9" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" font-weight="800" fill="#213226">46</text>
     </g>
     <text x="72" y="162" font-family="Arial, sans-serif" font-size="17" font-weight="800" fill="#263529">Geolocated community-box markers</text>
     <text x="72" y="588" class="small" font-size="14">SVG uses Web Mercator projection and local database coordinates.</text>
@@ -630,7 +642,21 @@
       <text x="32" y="8" font-family="Arial, sans-serif" font-size="15" fill="#536158">Little Library · 17 books at 39.4297, -77.4125</text>
       <text x="32" y="30" font-family="Arial, sans-serif" font-size="13" fill="#7a8079">Large red two-door Little Free Library with white trim beside a school building. The content photo shows t...</text>
     </g>
+    <g transform="translate(832 3158)">
+      <circle cx="0" cy="-8" r="18" fill="#227c70" stroke="#213226" stroke-width="3"/>
+      <text x="0" y="-1" text-anchor="middle" font-family="Arial, sans-serif" font-size="17" font-weight="800" fill="#fffaf0">45</text>
+      <text x="32" y="-16" font-family="Arial, sans-serif" font-size="19" font-weight="800" fill="#1f2d24">CSN-46 - Red Little Free Pantry</text>
+      <text x="32" y="8" font-family="Arial, sans-serif" font-size="15" fill="#536158">Little Free Pantry · food pantry at 39.4235, -77.4260</text>
+      <text x="32" y="30" font-family="Arial, sans-serif" font-size="13" fill="#7a8079">Red curbside Little Free Pantry box in a leafy residential spot, stocked with dry food, tuna lunch kits, a...</text>
+    </g>
+    <g transform="translate(832 3226)">
+      <circle cx="0" cy="-8" r="18" fill="#7a633c" stroke="#213226" stroke-width="3"/>
+      <text x="0" y="-1" text-anchor="middle" font-family="Arial, sans-serif" font-size="17" font-weight="800" fill="#fffaf0">46</text>
+      <text x="32" y="-16" font-family="Arial, sans-serif" font-size="19" font-weight="800" fill="#1f2d24">CSN-47 - Ann Arbor Indoor Free Book Shelf</text>
+      <text x="32" y="8" font-family="Arial, sans-serif" font-size="15" fill="#536158">Little Library · 48 books at 42.2759, -83.7350</text>
+      <text x="32" y="30" font-family="Arial, sans-serif" font-size="13" fill="#7a8079">Indoor four-shelf wooden bookcase on casters, beside a blue recycling bin with University of Michigan bran...</text>
+    </g>
   </g>
 
-  <text x="48" y="644" class="small" font-size="14">Updated 2026-05-25 12:28 UTC by scripts/render_library_map.py. Photo uploads and SQLite data stay out of Git.</text>
+  <text x="48" y="644" class="small" font-size="14">Updated 2026-10-04 21:40 UTC by scripts/render_library_map.py. Photo uploads and SQLite data stay out of Git.</text>
 </svg>

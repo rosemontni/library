@@ -21,6 +21,7 @@ DEFAULT_BOX_TYPE = "library"
 BOX_TYPE_LABELS = {
     "library": "Little Library",
     "art_gallery": "Little Art Gallery",
+    "free_pantry": "Little Free Pantry",
 }
 
 
@@ -32,6 +33,7 @@ def ensure_column(connection: sqlite3.Connection, table: str, column: str, defin
 
 def ensure_export_schema(connection: sqlite3.Connection) -> None:
     ensure_column(connection, "books", "status", "TEXT NOT NULL DEFAULT 'active'")
+    ensure_column(connection, "books", "last_seen_at", "TEXT")
     ensure_column(connection, "libraries", "box_type", "TEXT NOT NULL DEFAULT 'library'")
     ensure_column(connection, "libraries", "icon_path", "TEXT")
     ensure_column(connection, "libraries", "charter_number", "TEXT")
@@ -230,6 +232,7 @@ def load_books(connection: sqlite3.Connection) -> list[dict[str, Any]]:
             condition,
             confidence,
             notes,
+            last_seen_at,
             created_at
         FROM books
         WHERE COALESCE(status, 'active') = 'active'
@@ -251,6 +254,7 @@ def load_books(connection: sqlite3.Connection) -> list[dict[str, Any]]:
             "condition": row["condition"] or "",
             "confidence": row["confidence"],
             "notes": row["notes"] or "",
+            "last_seen_at": row["last_seen_at"] or "",
             "created_at": row["created_at"] or "",
         }
         for row in rows
@@ -286,7 +290,7 @@ def export_pages_data(db_path: Path = DEFAULT_DB_PATH, output_path: Path = DEFAU
     }
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    output_path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8", newline="\n")
     return payload["counts"]
 
 

@@ -15,6 +15,7 @@
   --rust: #b84d32;
   --rust-dark: #83341f;
   --gallery-marker: #5f57c8;
+  --pantry-marker: #227c70;
   --plum: #6e476e;
   --line: rgba(27, 33, 28, 0.13);
   --shadow: 0 28px 80px rgba(30, 43, 35, 0.17);
@@ -570,6 +571,11 @@ h3 {
 .atlas-marker-art-gallery span {
   background: var(--gallery-marker);
   box-shadow: 0 10px 24px rgba(52, 48, 120, 0.28);
+}
+
+.atlas-marker-free-pantry span {
+  background: var(--pantry-marker);
+  box-shadow: 0 10px 24px rgba(28, 91, 82, 0.3);
 }
 
 .library-popup.leaflet-popup {

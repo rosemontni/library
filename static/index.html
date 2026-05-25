@@ -10,7 +10,7 @@
       integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
       crossorigin=""
     />
-    <link rel="stylesheet" href="/styles.css?v=popup-fix-20260518" />
+    <link rel="stylesheet" href="/styles.css?v=pantry-local-20260525" />
   </head>
   <body>
     <div class="app-shell">
@@ -151,7 +151,10 @@
               <span class="microcopy" id="captureLocationStatus">No browser location attached yet.</span>
             </div>
 
-            <button type="submit" class="primary-button">Analyze Library Photos</button>
+            <div class="capture-actions">
+              <button type="submit" class="primary-button">Create Local Draft</button>
+              <span class="microcopy">GPS and saved photo evidence are processed first. AI extraction is optional after review.</span>
+            </div>
           </form>
 
           <div class="preview-grid">
@@ -186,12 +189,26 @@
           </div>
 
           <div id="analysisStatus" class="callout muted">Upload a photo to create a draft record.</div>
+          <div id="draftActions" class="draft-actions" hidden>
+            <button type="button" class="secondary-button" id="runAiExtraction">Run AI extraction on saved photos</button>
+            <span id="draftWorkflowNote" class="microcopy">
+              Optional. This refreshes the current draft with extracted books and notes from the saved photo set.
+            </span>
+          </div>
 
           <form id="libraryDraftForm" class="stack" hidden>
             <div class="field-grid">
               <label>
                 <span>Library name</span>
                 <input id="libraryName" type="text" />
+              </label>
+              <label>
+                <span>Community box type</span>
+                <select id="boxType">
+                  <option value="library">Little Library</option>
+                  <option value="art_gallery">Little Art Gallery</option>
+                  <option value="free_pantry">Little Free Pantry</option>
+                </select>
               </label>
               <label>
                 <span>Location source</span>
@@ -255,6 +272,7 @@
                     <th>Condition</th>
                     <th>Publisher</th>
                     <th>Year</th>
+                    <th>Last seen</th>
                     <th>Confidence</th>
                     <th>Notes</th>
                     <th></th>
@@ -280,6 +298,7 @@
         <td><input data-field="condition" type="text" /></td>
         <td><input data-field="publisher" type="text" /></td>
         <td><input data-field="published_year" type="text" /></td>
+        <td><input data-field="last_seen_at" type="text" placeholder="YYYY-MM-DD" /></td>
         <td><input data-field="confidence" type="number" min="0" max="1" step="0.01" /></td>
         <td><input data-field="notes" type="text" /></td>
         <td><button type="button" class="ghost-button remove-row">Remove</button></td>
@@ -291,6 +310,6 @@
       integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
       crossorigin=""
     ></script>
-    <script src="/app.js?v=popup-fix-20260518" defer></script>
+    <script src="/app.js?v=pantry-local-20260525" defer></script>
   </body>
 </html>

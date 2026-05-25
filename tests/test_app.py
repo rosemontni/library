@@ -6,6 +6,7 @@ import os
 import tempfile
 import threading
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 from PIL import Image
@@ -48,6 +49,47 @@ def plain_jpeg_bytes(color: str = "gray") -> bytes:
 
 
 class AppTests(unittest.TestCase):
+    def test_failed_ai_preserves_manual_box_type(self) -> None:
+        for box_type in ('free_pantry', 'art_gallery'):
+            with self.subTest(box_type=box_type):
+                merged = app.merge_analysis_into_draft({'box_type': box_type}, None)
+                self.assertEqual(merged['box_type'], box_type)
+
+    def test_seen_date_validation(self) -> None:
+        self.assertEqual(app.normalize_seen_value('2026-02-30'), '')
+        self.assertEqual(app.normalize_seen_value('2026-09-30'), '2026-09-30')
+        self.assertEqual(app.normalize_seen_value('2026-09-30T11:22:39-04:00'), '2026-09-30T11:22:39-04:00')
+
+    def test_pantry_and_capture_date_survive_generated_exports(self) -> None:
+        from scripts.export_github_pages import export_pages_data
+        from scripts.render_library_map import render_library_map
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            with patch.multiple(app, DATA_DIR=root, UPLOADS_DIR=root/'uploads', DB_PATH=root/'atlas.db'):
+                app.initialize_database()
+                pantry_id = app.insert_library({
+                    'library_name': 'Food Share', 'box_type': 'free_pantry',
+                    'geolocation': {'latitude': 39.0, 'longitude': -77.0, 'source': 'photo_exif'},
+                    'books': [],
+                })
+                app.insert_library({
+                    'library_name': 'Book Shelf',
+                    'geolocation': {'latitude': 42.0, 'longitude': -83.0, 'source': 'photo_exif'},
+                    'books': [{'title': 'Saint Odd', 'last_seen_at': '2026-09-30T11:22:39-04:00'}],
+                })
+                export_pages_data(app.DB_PATH, root/'atlas.json')
+                payload = json.loads((root/'atlas.json').read_text(encoding='utf-8'))
+                pantry = next(x for x in payload['libraries'] if x['id'] == pantry_id)
+                self.assertEqual(pantry['box_type'], 'free_pantry')
+                self.assertEqual(pantry['box_type_label'], 'Little Free Pantry')
+                self.assertEqual(payload['books'][0]['last_seen_at'], '2026-09-30T11:22:39-04:00')
+                render_library_map(app.DB_PATH, root/'map.svg')
+                svg = (root/'map.svg').read_text(encoding='utf-8')
+                self.assertIn('food pantry', svg)
+                self.assertIn('#227c70', svg)
+            gc.collect()
+
     def test_haversine_distance_is_reasonable(self) -> None:
         nyc = (40.7128, -74.0060)
         philly = (39.9526, -75.1652)
@@ -64,6 +106,82 @@ class AppTests(unittest.TestCase):
         browser_location = GeoPoint(39.30, -76.62, "browser_gps", 0.9)
         chosen = choose_best_location(exif_location, browser_location)
         self.assertEqual(chosen.source, "photo_exif")
+
+    def test_merge_analysis_into_draft_preserves_manual_values_when_ai_returns_blanks(self) -> None:
+        draft = {
+            "library_name": "Reviewed Shelf",
+            "library_description": "Manual description",
+            "photo_summary": "Manual photo summary",
+            "place_clues": ["playground", "blue fence"],
+            "box_type": "free_pantry",
+            "charter_number": "12345",
+            "books": [{"title": "Manual Book", "author": "Editor"}],
+        }
+
+        merged = app.merge_analysis_into_draft(
+            draft,
+            {
+                "library_name_suggestion": "",
+                "library_description": "",
+                "photo_summary": "",
+                "place_clues": [],
+                "box_type": "",
+                "charter_number": "",
+                "books": [],
+            },
+        )
+
+        self.assertEqual(merged["library_name_suggestion"], "Reviewed Shelf")
+        self.assertEqual(merged["library_description"], "Manual description")
+        self.assertEqual(merged["photo_summary"], "Manual photo summary")
+        self.assertEqual(merged["place_clues"], ["playground", "blue fence"])
+        self.assertEqual(merged["box_type"], "free_pantry")
+        self.assertEqual(merged["charter_number"], "12345")
+        self.assertEqual(len(merged["books"]), 1)
+        self.assertEqual(merged["books"][0]["title"], "Manual Book")
+
+    def test_find_existing_library_match_returns_nearby_library_summary(self) -> None:
+        original_data_dir = app.DATA_DIR
+        original_uploads_dir = app.UPLOADS_DIR
+        original_db_path = app.DB_PATH
+
+        with tempfile.TemporaryDirectory() as tempdir:
+            app.DATA_DIR = Path(tempdir)
+            app.UPLOADS_DIR = app.DATA_DIR / "uploads"
+            app.DB_PATH = app.DATA_DIR / "atlas.db"
+
+            try:
+                app.initialize_database()
+                with app.get_connection() as connection:
+                    cursor = connection.execute(
+                        """
+                        INSERT INTO libraries (name, box_type, description, latitude, longitude, location_source, location_confidence)
+                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                        """,
+                        ("Nearby Shelf", "library", "Already indexed", 39.29, -76.61, "photo_exif", 0.95),
+                    )
+                    library_id = int(cursor.lastrowid)
+                    match = app.find_existing_library_match(
+                        connection,
+                        {},
+                        "",
+                        39.2902,
+                        -76.6102,
+                        "library",
+                    )
+
+                self.assertEqual(match["library_id"], library_id)
+                self.assertEqual(match["csn"], f"CSN-{library_id}")
+                self.assertEqual(match["name"], "Nearby Shelf")
+                self.assertEqual(match["box_type"], "library")
+                self.assertEqual(match["box_type_label"], "Little Library")
+                self.assertEqual(match["match_reason"], "nearby_coordinates")
+                self.assertGreaterEqual(match["distance_miles"], 0.0)
+            finally:
+                app.DATA_DIR = original_data_dir
+                app.UPLOADS_DIR = original_uploads_dir
+                app.DB_PATH = original_db_path
+                gc.collect()
 
     def test_uploaded_photo_without_gps_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as tempdir:

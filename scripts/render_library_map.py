@@ -18,9 +18,11 @@ DEFAULT_BOX_TYPE = "library"
 BOX_TYPE_LABELS = {
     "library": "Little Library",
     "art_gallery": "Little Art Gallery",
+    "free_pantry": "Little Free Pantry",
 }
 BOX_TYPE_COLORS = {
     "art_gallery": "#5f57c8",
+    "free_pantry": "#227c70",
 }
 
 
@@ -57,6 +59,8 @@ class LibraryPoint:
     def inventory_label(self) -> str:
         if self.box_type == "art_gallery":
             return "art exchange"
+        if self.box_type == "free_pantry":
+            return "food pantry"
         return f"{self.book_count} book{'s' if self.book_count != 1 else ''}"
 
 
@@ -190,7 +194,7 @@ def render_library_map(db_path: Path = DEFAULT_DB_PATH, output_path: Path = DEFA
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     if not points:
-        output_path.write_text(render_empty_map(updated_at), encoding="utf-8")
+        output_path.write_text(render_empty_map(updated_at), encoding="utf-8", newline="\n")
         return {"libraries": 0, "output": str(output_path)}
 
     projected = [mercator(point.latitude, point.longitude) for point in points]
@@ -344,7 +348,7 @@ def render_library_map(db_path: Path = DEFAULT_DB_PATH, output_path: Path = DEFA
 </svg>
 """
 
-    output_path.write_text(svg, encoding="utf-8")
+    output_path.write_text(svg, encoding="utf-8", newline="\n")
     return {"libraries": len(points), "books": total_books, "output": str(output_path)}
 
 

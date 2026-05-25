@@ -2,8 +2,11 @@ const state = {
   captureLocation: null,
   searchLocation: null,
   currentDraft: null,
+  openaiEnabled: false,
   activeCategory: "",
   libraries: [],
+  baseCounts: null,
+  overlay: { libraries: [], books: [] },
   map: null,
   markers: new Map(),
   markerBounds: null,
@@ -30,8 +33,12 @@ const elements = {
   useCaptureLocation: document.getElementById("useCaptureLocation"),
   captureLocationStatus: document.getElementById("captureLocationStatus"),
   analysisStatus: document.getElementById("analysisStatus"),
+  draftActions: document.getElementById("draftActions"),
+  runAiExtraction: document.getElementById("runAiExtraction"),
+  draftWorkflowNote: document.getElementById("draftWorkflowNote"),
   libraryDraftForm: document.getElementById("libraryDraftForm"),
   libraryName: document.getElementById("libraryName"),
+  boxType: document.getElementById("boxType"),
   locationSource: document.getElementById("locationSource"),
   latitude: document.getElementById("latitude"),
   longitude: document.getElementById("longitude"),
@@ -88,6 +95,7 @@ const LOCAL_ZIP_CENTROIDS = Object.freeze({
 const BOX_TYPE_META = Object.freeze({
   library: { label: "Little Library", markerLabel: (library) => String(Number(library?.book_count || 0)) },
   art_gallery: { label: "Little Art Gallery", markerLabel: () => "A" },
+  free_pantry: { label: "Little Free Pantry", markerLabel: () => "P" },
 });
 
 async function fetchJSON(url, options = {}) {
@@ -112,7 +120,8 @@ function formatCount(count, singular, plural = `${singular}s`) {
 }
 
 function libraryBoxType(library) {
-  return library?.box_type === "art_gallery" ? "art_gallery" : "library";
+  const boxType = String(library?.box_type || "").trim();
+  return Object.prototype.hasOwnProperty.call(BOX_TYPE_META, boxType) ? boxType : "library";
 }
 
 function libraryTypeLabel(library) {
@@ -132,6 +141,9 @@ function libraryInventorySummary(library) {
   if (libraryBoxType(library) === "art_gallery") {
     return "Art exchange";
   }
+  if (libraryBoxType(library) === "free_pantry") {
+    return "Food pantry";
+  }
   return formatCount(library?.book_count, "book");
 }
 
@@ -148,7 +160,7 @@ function libraryLocationLabel(library) {
   }
   const coordinates = libraryMarkerCoordinates(library);
   return coordinates
-    ? `${formatNumber(coordinates[0])}°, ${formatNumber(coordinates[1])}°`
+    ? `${formatNumber(coordinates[0])}Â°, ${formatNumber(coordinates[1])}Â°`
     : "Coordinates missing";
 }
 
@@ -157,9 +169,72 @@ function setCallout(message, mode = "muted") {
   elements.analysisStatus.textContent = message;
 }
 
+function formatMiles(value) {
+  const distance = Number(value);
+  if (!Number.isFinite(distance)) {
+    return "";
+  }
+  return `${distance.toFixed(distance < 0.1 ? 2 : 1)} mi`;
+}
+
+function draftStatusMessage(draft) {
+  const messages = [];
+  if (draft?.analysis_mode === "ai_enriched") {
+    messages.push("AI draft ready. Review the extracted books, box type, and location before saving.");
+  } else if (state.openaiEnabled) {
+    messages.push("Local draft ready. Review the GPS evidence now, or run AI extraction to prefill books and notes before saving.");
+  } else {
+    messages.push("Local draft ready. Automated extraction is unavailable right now, so review the location and enter books manually before saving.");
+  }
+
+  const match = draft?.existing_library_match;
+  if (match?.library_id) {
+    const distanceLabel = formatMiles(match.distance_miles);
+    const summary = [match.csn || `CSN-${match.library_id}`, match.name, distanceLabel].filter(Boolean).join(" Â· ");
+    messages.push(`Likely existing record: ${summary}. Saving this draft will probably update that record.`);
+  }
+
+  if (draft?.warnings?.length) {
+    messages.push(...draft.warnings);
+  }
+  return messages.join(" ");
+}
+
+function syncDraftActions(draft) {
+  const canRunAi = Boolean(state.openaiEnabled && draft && draft.can_run_ai !== false);
+  elements.draftActions.hidden = !draft;
+  elements.runAiExtraction.hidden = !canRunAi;
+  if (!draft) {
+    elements.draftWorkflowNote.textContent = "";
+    return;
+  }
+  if (!state.openaiEnabled || draft.can_run_ai === false) {
+    elements.draftWorkflowNote.textContent = "Manual review mode is active. You can still save an accurate shelf record without AI.";
+    return;
+  }
+  if (draft.analysis_mode === "ai_enriched") {
+    elements.runAiExtraction.textContent = "Refresh AI extraction from saved photos";
+    elements.draftWorkflowNote.textContent = "Optional. This reruns extraction from the saved photo set and refreshes the current draft.";
+    return;
+  }
+  elements.runAiExtraction.textContent = "Run AI extraction on saved photos";
+  elements.draftWorkflowNote.textContent = "Optional. This fills books and notes from the saved photo set without re-uploading the originals.";
+}
+
 function updateCounts(counts) {
   elements.libraryCount.textContent = counts?.libraries ?? 0;
   elements.bookCount.textContent = counts?.books ?? 0;
+}
+
+function refreshDisplayedCounts() {
+  const baseLibraries = Number(state.baseCounts?.libraries || 0);
+  const baseBooks = Number(state.baseCounts?.books || 0);
+  const overlayLibraries = Array.isArray(state.overlay?.libraries) ? state.overlay.libraries.length : 0;
+  const overlayBooks = Array.isArray(state.overlay?.books) ? state.overlay.books.length : 0;
+  updateCounts({
+    libraries: baseLibraries + overlayLibraries,
+    books: baseBooks + overlayBooks,
+  });
 }
 
 function normalizeZipCode(value) {
@@ -207,7 +282,35 @@ function libraryHasCoordinates(library) {
 }
 
 function libraryPhoto(library) {
-  return library.location_photo_url || library.photo_url || library.books_photo_url || "";
+  return library.icon_url || library.location_photo_url || library.photo_url || library.books_photo_url || "";
+}
+
+function mergeLibraries(baseLibraries = [], overlayLibraries = []) {
+  const seenIds = new Set(baseLibraries.map((library) => String(library?.id ?? "")));
+  return [
+    ...overlayLibraries.filter((library) => !seenIds.has(String(library?.id ?? ""))),
+    ...baseLibraries,
+  ];
+}
+
+async function loadOptionalLocalCommunityBoxes() {
+  try {
+    const response = await fetch("./local-community-boxes.json", { cache: "no-store" });
+    if (response.status === 404) {
+      return { libraries: [], books: [] };
+    }
+    if (!response.ok) {
+      throw new Error(`Could not load local-community-boxes.json (${response.status})`);
+    }
+    const payload = await response.json();
+    return {
+      libraries: Array.isArray(payload?.libraries) ? payload.libraries : [],
+      books: Array.isArray(payload?.books) ? payload.books : [],
+    };
+  } catch (error) {
+    console.warn("Skipping local community-box overlay:", error);
+    return { libraries: [], books: [] };
+  }
 }
 
 function initMap() {
@@ -258,9 +361,9 @@ function popupHtml(library) {
       <div class="popup-head">
         ${photo ? `<img class="popup-icon" src="${escapeHtml(photo)}" alt="${escapeHtml(library.name)} icon" />` : ""}
         <div>
-          <strong>${escapeHtml(csn)} · ${escapeHtml(library.name)}</strong>
+          <strong>${escapeHtml(csn)} Â· ${escapeHtml(library.name)}</strong>
           <p>${escapeHtml(library.description || "No description saved yet.")}</p>
-          <small>${escapeHtml(typeLabel)} · ${escapeHtml(inventorySummary)} · ${escapeHtml(locationLabel)}</small>
+          <small>${escapeHtml(typeLabel)} Â· ${escapeHtml(inventorySummary)} Â· ${escapeHtml(locationLabel)}</small>
         </div>
       </div>
       ${sampleBooks ? `<ul>${sampleBooks}</ul>` : ""}
@@ -324,14 +427,14 @@ function renderLibraryList(libraries) {
     card.className = "library-mini-card";
     const photo = libraryPhoto(library);
     const locationLabel = libraryLocationLabel(library);
-    const samples = (library.sample_books || []).slice(0, 3).map(escapeHtml).join(" · ");
+    const samples = (library.sample_books || []).slice(0, 3).map(escapeHtml).join(" Â· ");
     card.innerHTML = `
       ${photo ? `<img src="${escapeHtml(photo)}" alt="${escapeHtml(library.name)} locator photo" />` : `<div class="library-mini-empty">No photo</div>`}
       <div>
-        <h3>${escapeHtml(libraryCsn(library))} · ${escapeHtml(library.name)}</h3>
+        <h3>${escapeHtml(libraryCsn(library))} Â· ${escapeHtml(library.name)}</h3>
         <p>${escapeHtml(library.description || "No description saved yet.")}</p>
         <div class="mini-meta">
-          <span>${escapeHtml(libraryTypeLabel(library))} · ${escapeHtml(libraryInventorySummary(library))}</span>
+          <span>${escapeHtml(libraryTypeLabel(library))} Â· ${escapeHtml(libraryInventorySummary(library))}</span>
           <span>${escapeHtml(locationLabel)}</span>
         </div>
         ${samples ? `<small>${samples}</small>` : ""}
@@ -361,8 +464,13 @@ function renderLibraryList(libraries) {
 }
 
 async function loadLibraries() {
-  const payload = await fetchJSON("/api/libraries");
-  state.libraries = payload.libraries || [];
+  const [payload, overlay] = await Promise.all([
+    fetchJSON("/api/libraries"),
+    loadOptionalLocalCommunityBoxes(),
+  ]);
+  state.overlay = overlay;
+  state.libraries = mergeLibraries(payload.libraries || [], overlay.libraries || []);
+  refreshDisplayedCounts();
   renderLibraryList(state.libraries);
   renderMap(state.libraries);
 }
@@ -455,8 +563,10 @@ function renderBooks(books = []) {
 function renderDraft(draft) {
   state.currentDraft = draft;
   elements.libraryDraftForm.hidden = false;
+  syncDraftActions(draft);
 
   elements.libraryName.value = draft.library_name || "";
+  elements.boxType.value = draft.box_type || "library";
   elements.locationSource.value = draft.geolocation?.source || "";
   elements.latitude.value = draft.geolocation?.latitude ?? "";
   elements.longitude.value = draft.geolocation?.longitude ?? "";
@@ -469,12 +579,7 @@ function renderDraft(draft) {
   elements.placeClues.value = (draft.place_clues || []).join(", ");
 
   renderBooks(draft.books || []);
-
-  if (draft.warnings?.length) {
-    setCallout(draft.warnings.join(" "), "error");
-  } else {
-    setCallout("Draft ready. Review the location and book rows, then save this library into the atlas.", "muted");
-  }
+  setCallout(draftStatusMessage(draft), "muted");
 }
 
 function collectBooks() {
@@ -494,15 +599,25 @@ function collectDraftPayload() {
   return {
     library_name: elements.libraryName.value.trim(),
     library_description: elements.libraryDescription.value.trim(),
-    photo_path: state.currentDraft?.photo_url?.replace(/^\//, "") || "",
-    books_photo_path: state.currentDraft?.books_photo_url?.replace(/^\//, "") || "",
+    box_type: elements.boxType.value || state.currentDraft?.box_type || "library",
+    photo_path: (state.currentDraft?.photo_path || "").replace(/^\//, ""),
+    books_photo_path: (state.currentDraft?.books_photo_path || "").replace(/^\//, ""),
     books_photo_paths: (state.currentDraft?.books_photo_paths || []).map((path) => path.replace(/^\//, "")),
-    location_photo_path: state.currentDraft?.location_photo_url?.replace(/^\//, "") || "",
+    location_photo_path: (state.currentDraft?.location_photo_path || "").replace(/^\//, ""),
     location_photo_paths: (state.currentDraft?.location_photo_paths || []).map((path) => path.replace(/^\//, "")),
+    additional_photo_path: (state.currentDraft?.additional_photo_path || "").replace(/^\//, ""),
     additional_photo_paths: (state.currentDraft?.additional_photo_paths || []).map((path) => path.replace(/^\//, "")),
     photo_paths: (state.currentDraft?.photo_paths || []).map((path) => path.replace(/^\//, "")),
+    photo_records: state.currentDraft?.photo_records || [],
+    photo_filename: state.currentDraft?.photo_filename || "",
+    photo_summary: elements.photoSummary.value.trim(),
     charter_number: elements.charterNumber.value.trim(),
     charter_registration: state.currentDraft?.charter_registration || {},
+    analysis_mode: state.currentDraft?.analysis_mode || "local_draft",
+    can_run_ai: state.currentDraft?.can_run_ai !== false,
+    warnings: state.currentDraft?.warnings || [],
+    icon_source_photo_path: state.currentDraft?.icon_source_photo_path || "",
+    existing_library_match: state.currentDraft?.existing_library_match || {},
     place_clues: elements.placeClues.value
       .split(",")
       .map((item) => item.trim())
@@ -564,7 +679,7 @@ function renderSearchResults(results) {
     const locatorPhoto = group.library.location_photo_url || group.library.photo_url;
     const matchedBooks = group.books
       .map((book) => {
-        const details = [book.author, book.genre, book.format].filter(Boolean).map(escapeHtml).join(" · ");
+        const details = [book.author, book.genre, book.format].filter(Boolean).map(escapeHtml).join(" Â· ");
         return `
           <li>
             <strong>${escapeHtml(book.title)}</strong>
@@ -582,7 +697,7 @@ function renderSearchResults(results) {
       }
       <div class="result-head">
         <div>
-          <h3 class="result-title">${escapeHtml(libraryCsn(group.library))} · ${escapeHtml(group.library.name)}</h3>
+          <h3 class="result-title">${escapeHtml(libraryCsn(group.library))} Â· ${escapeHtml(group.library.name)}</h3>
           <p>${escapeHtml(group.library.description || "No library description saved yet.")}</p>
         </div>
         <span class="distance-pill">${escapeHtml(distanceLabel)}</span>
@@ -631,7 +746,9 @@ function escapeHtml(value) {
 
 async function loadConfig() {
   const payload = await fetchJSON("/api/config");
-  updateCounts(payload.counts);
+  state.baseCounts = payload.counts || { libraries: 0, books: 0 };
+  state.openaiEnabled = Boolean(payload.openai_enabled);
+  refreshDisplayedCounts();
   elements.modelName.textContent = payload.openai_enabled ? payload.model : "manual mode";
 }
 
@@ -664,9 +781,9 @@ elements.additionalPhotoInput.addEventListener("change", (event) => {
 elements.useCaptureLocation.addEventListener("click", async () => {
   try {
     state.captureLocation = await requestLocation(elements.captureLocationStatus);
-    elements.captureLocationStatus.textContent = `Attached ${formatNumber(state.captureLocation.latitude)}°, ${formatNumber(
+    elements.captureLocationStatus.textContent = `Attached ${formatNumber(state.captureLocation.latitude)}Â°, ${formatNumber(
       state.captureLocation.longitude
-    )}° with ±${Math.round(state.captureLocation.accuracy_meters)}m accuracy.`;
+    )}Â° with Â±${Math.round(state.captureLocation.accuracy_meters)}m accuracy.`;
   } catch (error) {
     elements.captureLocationStatus.textContent = error.message;
   }
@@ -677,9 +794,9 @@ elements.useSearchLocation.addEventListener("click", async () => {
     state.searchLocation = await requestLocation(elements.searchLocationStatus);
     state.searchLocation.source = "browser";
     elements.searchZipCode.value = "";
-    elements.searchLocationStatus.textContent = `Using ${formatNumber(state.searchLocation.latitude)}°, ${formatNumber(
+    elements.searchLocationStatus.textContent = `Using ${formatNumber(state.searchLocation.latitude)}Â°, ${formatNumber(
       state.searchLocation.longitude
-    )}° for distance ranking.`;
+    )}Â° for distance ranking.`;
   } catch (error) {
     elements.searchLocationStatus.textContent = error.message;
   }
@@ -696,7 +813,7 @@ elements.captureForm.addEventListener("submit", async (event) => {
     return;
   }
 
-  setCallout("Analyzing the uploaded library photos and preparing a draft...", "muted");
+  setCallout("Creating a local draft from the uploaded photos and GPS evidence...", "muted");
 
   const formData = new FormData();
   booksFiles.forEach((file) => formData.append("books_photo", file));
@@ -709,9 +826,28 @@ elements.captureForm.addEventListener("submit", async (event) => {
   }
 
   try {
-    const draft = await fetchJSON("/api/analyze-photo", {
+    const draft = await fetchJSON("/api/photo-draft", {
       method: "POST",
       body: formData,
+    });
+    renderDraft(draft);
+  } catch (error) {
+    setCallout(error.message, "error");
+  }
+});
+
+elements.runAiExtraction.addEventListener("click", async () => {
+  if (!state.currentDraft) {
+    return;
+  }
+
+  setCallout("Running AI extraction on the saved photo set and refreshing this draft...", "muted");
+
+  try {
+    const draft = await fetchJSON("/api/photo-draft/ai", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(collectDraftPayload()),
     });
     renderDraft(draft);
   } catch (error) {

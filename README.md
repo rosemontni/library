@@ -43,6 +43,14 @@ Community programmers can search the central database from their own code throug
 
 The default public API rate limit is `60` requests per `60` seconds per client IP. Deployments can tune it with `PUBLIC_API_RATE_LIMIT_REQUESTS` and `PUBLIC_API_RATE_LIMIT_WINDOW_SECONDS` to keep the project useful for neighbors while discouraging commercial abuse.
 
+## Operational lessons
+
+Confirmed mistakes, tool failures, and the paired recovery/prevention steps live in [LESSONS_LEARNED.md](LESSONS_LEARNED.md). Treat it as a living log for intake, publish, and verification workflow improvements.
+
+## Intake strategy
+
+The current local-first browser intake direction, the cost-reduction discussion behind it, and the scoped Phase 1 plan live in [INTAKE_STRATEGY.md](INTAKE_STRATEGY.md).
+
 ## How to contribute photos
 
 Send two GPS-tagged photos to `civitaslibrary@gmail.com`:

@@ -58,6 +58,7 @@ const LOCAL_ZIP_CENTROIDS = Object.freeze({
 const BOX_TYPE_META = Object.freeze({
   library: { label: "Little Library", markerLabel: (library) => String(Number(library?.book_count || 0)) },
   art_gallery: { label: "Little Art Gallery", markerLabel: () => "A" },
+  free_pantry: { label: "Little Free Pantry", markerLabel: () => "P" },
 });
 
 function escapeHtml(value) {
@@ -98,7 +99,8 @@ function formatCount(count, singular, plural = `${singular}s`) {
 }
 
 function libraryBoxType(library) {
-  return library?.box_type === "art_gallery" ? "art_gallery" : "library";
+  const boxType = String(library?.box_type || "").trim();
+  return Object.prototype.hasOwnProperty.call(BOX_TYPE_META, boxType) ? boxType : "library";
 }
 
 function libraryTypeLabel(library) {
@@ -117,6 +119,9 @@ function libraryMarkerLabel(library) {
 function libraryInventorySummary(library) {
   if (libraryBoxType(library) === "art_gallery") {
     return "Art exchange";
+  }
+  if (libraryBoxType(library) === "free_pantry") {
+    return "Food pantry";
   }
   return formatCount(library?.book_count, "book");
 }
@@ -374,13 +379,13 @@ function buildPublicationHighlights(books = []) {
 
 function bookShelfLabel(book) {
   const library = state.librariesById.get(book.library_id);
-  return library ? `${libraryCsn(library)} · ${library.name}` : "Unknown shelf";
+  return library ? `${libraryCsn(library)} Â· ${library.name}` : "Unknown shelf";
 }
 
 function renderPublicationList(title, subtitle, books, emptyMessage) {
   const rows = books
     .map((book) => {
-      const details = [book.author, primaryGenre(book.genre)].filter(Boolean).join(" · ");
+      const details = [book.author, primaryGenre(book.genre)].filter(Boolean).join(" Â· ");
       return `
         <li class="publication-item">
           <span class="publication-year">${book.parsed_year}</span>
@@ -547,9 +552,9 @@ function popupHtml(library) {
       <div class="popup-head">
         ${icon ? `<img class="popup-icon" src="${escapeHtml(icon)}" alt="${escapeHtml(library.name)} icon" />` : ""}
         <div>
-          <strong>${escapeHtml(csn)} · ${escapeHtml(library.name)}</strong>
+          <strong>${escapeHtml(csn)} Â· ${escapeHtml(library.name)}</strong>
           <p>${escapeHtml(library.description || "No description saved.")}</p>
-          <small><span class="popup-type">${escapeHtml(typeLabel)}</span> · ${escapeHtml(inventorySummary)} · ${escapeHtml(locationLabel)}</small>
+          <small><span class="popup-type">${escapeHtml(typeLabel)}</span> Â· ${escapeHtml(inventorySummary)} Â· ${escapeHtml(locationLabel)}</small>
         </div>
       </div>
     </article>
@@ -673,10 +678,10 @@ function renderResults(results, query) {
     card.innerHTML = `
       <div>
         <h3>${escapeHtml(book.title)}</h3>
-        <p>${escapeHtml([book.author, book.genre, book.publisher, book.published_year].filter(Boolean).join(" · ") || "Metadata incomplete")}</p>
+        <p>${escapeHtml([book.author, book.genre, book.publisher, book.published_year].filter(Boolean).join(" Â· ") || "Metadata incomplete")}</p>
       </div>
       <div class="card-meta">
-        <span>${escapeHtml(library ? `${libraryCsn(library)} · ${library.name}` : "Unknown library")}</span>
+        <span>${escapeHtml(library ? `${libraryCsn(library)} Â· ${library.name}` : "Unknown library")}</span>
         <span>${escapeHtml(book.format || "format unknown")}</span>
         ${distance}
       </div>
