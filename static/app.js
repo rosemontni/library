@@ -85,6 +85,11 @@ const LOCAL_ZIP_CENTROIDS = Object.freeze({
   "22301": { latitude: 38.8197, longitude: -77.0584, label: "Alexandria, VA 22301" },
 });
 
+const BOX_TYPE_META = Object.freeze({
+  library: { label: "Little Library", markerLabel: (library) => String(Number(library?.book_count || 0)) },
+  art_gallery: { label: "Little Art Gallery", markerLabel: () => "A" },
+});
+
 async function fetchJSON(url, options = {}) {
   const response = await fetch(url, options);
   const payload = await response.json().catch(() => ({}));
@@ -104,6 +109,30 @@ function formatNumber(value, digits = 4) {
 function formatCount(count, singular, plural = `${singular}s`) {
   const value = Number(count || 0);
   return `${value} ${value === 1 ? singular : plural}`;
+}
+
+function libraryBoxType(library) {
+  return library?.box_type === "art_gallery" ? "art_gallery" : "library";
+}
+
+function libraryTypeLabel(library) {
+  if (library?.box_type_label) {
+    return library.box_type_label;
+  }
+  return BOX_TYPE_META[libraryBoxType(library)]?.label || BOX_TYPE_META.library.label;
+}
+
+function libraryMarkerLabel(library) {
+  const boxType = libraryBoxType(library);
+  const markerLabel = BOX_TYPE_META[boxType]?.markerLabel;
+  return typeof markerLabel === "function" ? markerLabel(library) : "0";
+}
+
+function libraryInventorySummary(library) {
+  if (libraryBoxType(library) === "art_gallery") {
+    return "Art exchange";
+  }
+  return formatCount(library?.book_count, "book");
 }
 
 function libraryCsn(library) {
@@ -204,10 +233,11 @@ function initMap() {
   }).addTo(state.map);
 }
 
-function markerIcon(bookCount = 0) {
+function markerIcon(library) {
+  const boxType = libraryBoxType(library).replaceAll("_", "-");
   return L.divIcon({
-    className: "atlas-marker",
-    html: `<span><b>${bookCount}</b></span>`,
+    className: `atlas-marker atlas-marker-${boxType}`,
+    html: `<span><b>${libraryMarkerLabel(library)}</b></span>`,
     iconSize: [38, 44],
     iconAnchor: [19, 42],
     popupAnchor: [0, -38],
@@ -218,6 +248,8 @@ function popupHtml(library) {
   const photo = library.icon_url || libraryPhoto(library);
   const csn = libraryCsn(library);
   const locationLabel = libraryLocationLabel(library);
+  const typeLabel = libraryTypeLabel(library);
+  const inventorySummary = libraryInventorySummary(library);
   const sampleBooks = (library.sample_books || [])
     .map((title) => `<li>${escapeHtml(title)}</li>`)
     .join("");
@@ -228,7 +260,7 @@ function popupHtml(library) {
         <div>
           <strong>${escapeHtml(csn)} · ${escapeHtml(library.name)}</strong>
           <p>${escapeHtml(library.description || "No description saved yet.")}</p>
-          <small>${formatCount(library.book_count, "book")} · ${escapeHtml(locationLabel)}</small>
+          <small>${escapeHtml(typeLabel)} · ${escapeHtml(inventorySummary)} · ${escapeHtml(locationLabel)}</small>
         </div>
       </div>
       ${sampleBooks ? `<ul>${sampleBooks}</ul>` : ""}
@@ -256,7 +288,7 @@ function renderMap(libraries) {
   const markerCoordinates = [];
   mappedLibraries.forEach((library) => {
     const coordinates = libraryMarkerCoordinates(library);
-    const marker = L.marker(coordinates, { icon: markerIcon(library.book_count) })
+    const marker = L.marker(coordinates, { icon: markerIcon(library) })
       .addTo(state.map)
       .bindPopup(popupHtml(library), {
         className: "library-popup",
@@ -275,7 +307,7 @@ function renderMap(libraries) {
     elements.mapStatus.textContent = `${markerCoordinates.length} mapped shelves. Scroll or pinch to zoom.`;
   } else {
     state.markerBounds = null;
-    elements.mapStatus.textContent = "No saved libraries have coordinates yet.";
+    elements.mapStatus.textContent = "No saved community boxes have coordinates yet.";
   }
 }
 
@@ -299,7 +331,7 @@ function renderLibraryList(libraries) {
         <h3>${escapeHtml(libraryCsn(library))} · ${escapeHtml(library.name)}</h3>
         <p>${escapeHtml(library.description || "No description saved yet.")}</p>
         <div class="mini-meta">
-          <span>${library.book_count || 0} books</span>
+          <span>${escapeHtml(libraryTypeLabel(library))} · ${escapeHtml(libraryInventorySummary(library))}</span>
           <span>${escapeHtml(locationLabel)}</span>
         </div>
         ${samples ? `<small>${samples}</small>` : ""}

@@ -7,6 +7,7 @@
   --ink-soft: #5c6761;
   --rust: #b65336;
   --rust-deep: #82331e;
+  --gallery-marker: #5f57c8;
   --pine: #24584d;
   --mint: #dcecdf;
   --sky: #d9e9ef;
@@ -335,6 +336,11 @@ textarea {
 .atlas-marker b {
   display: block;
   transform: rotate(45deg);
+}
+
+.atlas-marker-art-gallery span {
+  background: var(--gallery-marker);
+  box-shadow: 0 14px 28px rgba(52, 48, 120, 0.28);
 }
 
 .library-popup.leaflet-popup {

@@ -104,11 +104,65 @@ class AppTests(unittest.TestCase):
                 self.assertEqual(app.get_counts(), {"libraries": 1, "books": 0})
                 libraries = app.list_libraries()
                 self.assertEqual(libraries[0]["name"], "Empty Today Shelf")
+                self.assertEqual(libraries[0]["box_type"], "library")
                 self.assertEqual(libraries[0]["book_count"], 0)
             finally:
                 app.DATA_DIR = original_data_dir
                 app.UPLOADS_DIR = original_uploads_dir
                 app.DB_PATH = original_db_path
+                gc.collect()
+
+    def test_insert_art_gallery_preserves_box_type_in_api_and_export(self) -> None:
+        original_data_dir = app.DATA_DIR
+        original_uploads_dir = app.UPLOADS_DIR
+        original_db_path = app.DB_PATH
+        original_pages_data_path = app.PAGES_DATA_PATH
+        original_pages_env = os.environ.get("LIBRARY_PAGES_DATA_PATH")
+
+        with tempfile.TemporaryDirectory() as tempdir:
+            app.DATA_DIR = Path(tempdir)
+            app.UPLOADS_DIR = app.DATA_DIR / "uploads"
+            app.DB_PATH = app.DATA_DIR / "atlas.db"
+            app.PAGES_DATA_PATH = app.DATA_DIR / "atlas-data.json"
+            os.environ["LIBRARY_PAGES_DATA_PATH"] = str(app.PAGES_DATA_PATH)
+
+            try:
+                app.initialize_database()
+                library_id = app.insert_library(
+                    {
+                        "library_name": "Mosaic Post Little Art Gallery",
+                        "library_description": "A free community art exchange with a small white display box.",
+                        "box_type": "art_gallery",
+                        "place_clues": ["free art gallery", "front yard"],
+                        "geolocation": {
+                            "latitude": 39.4336722,
+                            "longitude": -77.4244305,
+                            "source": "photo_exif",
+                            "confidence": 0.9,
+                        },
+                        "books": [],
+                    }
+                )
+
+                self.assertGreater(library_id, 0)
+                libraries = app.list_libraries()
+                self.assertEqual(libraries[0]["box_type"], "art_gallery")
+                self.assertEqual(libraries[0]["box_type_label"], "Little Art Gallery")
+                self.assertEqual(libraries[0]["book_count"], 0)
+
+                exported = json.loads(app.PAGES_DATA_PATH.read_text(encoding="utf-8"))
+                self.assertEqual(exported["libraries"][0]["box_type"], "art_gallery")
+                self.assertEqual(exported["libraries"][0]["box_type_label"], "Little Art Gallery")
+                self.assertEqual(exported["libraries"][0]["book_count"], 0)
+            finally:
+                if original_pages_env is None:
+                    os.environ.pop("LIBRARY_PAGES_DATA_PATH", None)
+                else:
+                    os.environ["LIBRARY_PAGES_DATA_PATH"] = original_pages_env
+                app.DATA_DIR = original_data_dir
+                app.UPLOADS_DIR = original_uploads_dir
+                app.DB_PATH = original_db_path
+                app.PAGES_DATA_PATH = original_pages_data_path
                 gc.collect()
 
     def test_insert_library_rejects_new_library_without_gps(self) -> None:

@@ -35,7 +35,7 @@ MAP_OUTPUT_PATH = Path(os.getenv("LIBRARY_MAP_PATH", str(BASE_DIR / "assets" / "
 PAGES_DATA_PATH = Path(os.getenv("LIBRARY_PAGES_DATA_PATH", str(BASE_DIR / "docs" / "atlas-data.json")))
 LIBRARY_ICONS_DIR = Path(os.getenv("LIBRARY_ICONS_DIR", str(BASE_DIR / "docs" / "library-icons")))
 LIBRARY_ICON_SIZE = 144
-DATABASE_SCHEMA_VERSION = 2
+DATABASE_SCHEMA_VERSION = 3
 
 HOST = os.getenv("HOST", "127.0.0.1")
 PORT = int(os.getenv("PORT", "8000"))
@@ -79,6 +79,24 @@ CATEGORY_MARKERS = {
     "history": ("history", "biography", "civil war", "lincoln", "appomattox"),
     "wellness": ("health", "nutrition", "fitness", "yoga"),
     "media": ("dvd", "film"),
+}
+
+DEFAULT_BOX_TYPE = "library"
+BOX_TYPE_ALIASES = {
+    "library": "library",
+    "little library": "library",
+    "little free library": "library",
+    "book exchange": "library",
+    "book box": "library",
+    "mini library": "library",
+    "art gallery": "art_gallery",
+    "little art gallery": "art_gallery",
+    "free art gallery": "art_gallery",
+    "community art gallery": "art_gallery",
+}
+BOX_TYPE_LABELS = {
+    "library": "Little Library",
+    "art_gallery": "Little Art Gallery",
 }
 
 LOCAL_ZIP_CENTROIDS: dict[str, dict[str, Any]] = {
@@ -137,6 +155,7 @@ ANALYSIS_SCHEMA: dict[str, Any] = {
         "library_description",
         "photo_summary",
         "place_clues",
+        "box_type",
         "charter_number",
         "books",
     ],
@@ -145,6 +164,7 @@ ANALYSIS_SCHEMA: dict[str, Any] = {
         "library_description": {"type": "string"},
         "photo_summary": {"type": "string"},
         "place_clues": {"type": "array", "items": {"type": "string"}},
+        "box_type": {"type": "string"},
         "charter_number": {"type": "string"},
         "books": {
             "type": "array",
@@ -169,23 +189,25 @@ ANALYSIS_SCHEMA: dict[str, Any] = {
     },
 }
 
-ANALYSIS_SYSTEM_PROMPT = """You are an assistant that extracts structured data from photos of small public little libraries on sidewalks.
+ANALYSIS_SYSTEM_PROMPT = """You are an assistant that extracts structured data from photos of small public community exchange boxes on sidewalks.
 
 Return JSON only.
 Do not invent books that are not visible.
 If you are unsure, keep a field blank and lower the confidence.
 Only include books that are visibly present in the photo.
 Do not guess an ISBN unless it is clearly visible or highly reliable from the exact edition clues.
+Use box_type = "library" for book-sharing boxes and box_type = "art_gallery" for little art galleries or similar art exchanges.
 Use concise phrases.
 """
 
-ANALYSIS_USER_PROMPT = """Analyze these photo(s) of one little library.
+ANALYSIS_USER_PROMPT = """Analyze these photo(s) of one community exchange box.
 
 Return JSON with:
 - library_name_suggestion: a short descriptive nickname for this library
 - library_description: one or two sentences describing the library setup and condition
 - photo_summary: a plain-language summary of what is in the image
 - place_clues: visible clues such as street signs, murals, house numbers, nearby businesses, or neighborhood hints
+- box_type: "library" for book-sharing shelves or "art_gallery" for little art galleries / free art exchanges
 - charter_number: the Little Free Library charter number if visible, usually near a "Charter #" label; otherwise blank
 - books: the visible books with metadata fields title, author, isbn, publisher, published_year, genre, format, condition, confidence, notes
 
@@ -284,6 +306,7 @@ def initialize_database() -> None:
             CREATE TABLE IF NOT EXISTS libraries (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT NOT NULL,
+                box_type TEXT NOT NULL DEFAULT 'library',
                 description TEXT,
                 latitude REAL,
                 longitude REAL,
@@ -392,6 +415,7 @@ def initialize_database() -> None:
 
             """
         )
+        ensure_column(connection, "libraries", "box_type", "TEXT NOT NULL DEFAULT 'library'")
         ensure_column(connection, "libraries", "books_photo_path", "TEXT")
         ensure_column(connection, "libraries", "location_photo_path", "TEXT")
         ensure_column(connection, "libraries", "icon_path", "TEXT")
@@ -477,6 +501,20 @@ def normalize_text(value: Any) -> str:
     text = re.sub(r"[^a-z0-9\s-]+", " ", text)
     text = re.sub(r"\s+", " ", text)
     return text.strip()
+
+
+def normalize_box_type(*values: Any) -> str:
+    for value in values:
+        normalized = normalize_text(value).replace("_", " ")
+        if not normalized:
+            continue
+        if normalized in BOX_TYPE_ALIASES:
+            return BOX_TYPE_ALIASES[normalized]
+    return DEFAULT_BOX_TYPE
+
+
+def box_type_label(value: Any) -> str:
+    return BOX_TYPE_LABELS.get(normalize_box_type(value), BOX_TYPE_LABELS[DEFAULT_BOX_TYPE])
 
 
 def build_search_blob(*parts: Any) -> str:
@@ -1439,6 +1477,7 @@ def normalize_model_analysis(data: dict[str, Any]) -> dict[str, Any]:
         "library_description": str(data.get("library_description", "") or "").strip(),
         "photo_summary": str(data.get("photo_summary", "") or "").strip(),
         "place_clues": [str(item).strip() for item in data.get("place_clues", []) if str(item).strip()],
+        "box_type": normalize_box_type(data.get("box_type")),
         "charter_number": normalize_charter_number(data.get("charter_number"))
         or extract_charter_number_from_text(
             data.get("library_name_suggestion"),
@@ -1466,6 +1505,7 @@ def build_analysis_response(
         "library_description": "",
         "photo_summary": "",
         "place_clues": [],
+        "box_type": DEFAULT_BOX_TYPE,
         "charter_number": "",
         "books": [],
     }
@@ -1498,6 +1538,7 @@ def build_analysis_response(
         "library_description": output["library_description"],
         "photo_summary": output["photo_summary"],
         "place_clues": output["place_clues"],
+        "box_type": normalize_box_type(output.get("box_type")),
         "charter_number": output.get("charter_number", ""),
         "charter_registration": charter_registration or {},
         "geolocation": geolocation,
@@ -1535,6 +1576,7 @@ def find_existing_library_id(
     charter_number: str,
     latitude: float | None = None,
     longitude: float | None = None,
+    box_type: str = DEFAULT_BOX_TYPE,
 ) -> int | None:
     library_id = to_int(payload.get("library_id"))
     if library_id:
@@ -1548,10 +1590,11 @@ def find_existing_library_id(
             SELECT id
             FROM libraries
             WHERE charter_number = ?
+              AND COALESCE(box_type, 'library') = ?
             ORDER BY id DESC
             LIMIT 1
             """,
-            (charter_number,),
+            (charter_number, box_type),
         ).fetchone()
         if row:
             return int(row["id"])
@@ -1563,7 +1606,9 @@ def find_existing_library_id(
             FROM libraries
             WHERE latitude IS NOT NULL
               AND longitude IS NOT NULL
-            """
+              AND COALESCE(box_type, 'library') = ?
+            """,
+            (box_type,),
         ).fetchall()
         nearest_id: int | None = None
         nearest_distance: float | None = None
@@ -1785,6 +1830,11 @@ def upsert_library_inventory(
 def insert_library(payload: dict[str, Any]) -> int:
     library_name = str(payload.get("library_name") or "").strip()
     description = str(payload.get("library_description") or "").strip()
+    box_type = normalize_box_type(
+        payload.get("box_type"),
+        payload.get("community_box_type"),
+        payload.get("type"),
+    )
     books_photo_path = first_photo_path(payload.get("books_photo_path"), payload.get("books_photo_paths"))
     location_photo_path = first_photo_path(payload.get("location_photo_path"), payload.get("location_photo_paths"))
     legacy_photo_path = first_photo_path(payload.get("photo_path"), payload.get("photo_paths"))
@@ -1826,7 +1876,7 @@ def insert_library(payload: dict[str, Any]) -> int:
     charter_record_json = json.dumps(charter_registration, sort_keys=True) if charter_registration else ""
 
     with get_connection() as connection:
-        library_id = find_existing_library_id(connection, payload, charter_number, latitude, longitude)
+        library_id = find_existing_library_id(connection, payload, charter_number, latitude, longitude, box_type)
         require_new_library_location(latitude, longitude)
         if not library_id:
             require_new_library_name(library_name)
@@ -1840,6 +1890,7 @@ def insert_library(payload: dict[str, Any]) -> int:
                 """
                 UPDATE libraries
                 SET name = COALESCE(NULLIF(?, ''), name),
+                    box_type = COALESCE(NULLIF(?, ''), box_type),
                     description = COALESCE(NULLIF(?, ''), description),
                     latitude = COALESCE(?, latitude),
                     longitude = COALESCE(?, longitude),
@@ -1860,6 +1911,7 @@ def insert_library(payload: dict[str, Any]) -> int:
                 """,
                 (
                     library_name,
+                    box_type,
                     description,
                     latitude,
                     longitude,
@@ -1884,6 +1936,7 @@ def insert_library(payload: dict[str, Any]) -> int:
                 """
                 INSERT INTO libraries (
                     name,
+                    box_type,
                     description,
                     latitude,
                     longitude,
@@ -1901,10 +1954,11 @@ def insert_library(payload: dict[str, Any]) -> int:
                     charter_record_json,
                     place_clues
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     library_name,
+                    box_type,
                     description,
                     latitude,
                     longitude,
@@ -2139,6 +2193,7 @@ def list_libraries() -> list[dict[str, Any]]:
         SELECT
             l.id,
             l.name,
+            COALESCE(l.box_type, 'library') AS box_type,
             l.description,
             l.latitude,
             l.longitude,
@@ -2182,6 +2237,8 @@ def list_libraries() -> list[dict[str, Any]]:
                 "id": row["id"],
                 "csn": f"CSN-{row['id']}",
                 "name": row["name"],
+                "box_type": row["box_type"] or DEFAULT_BOX_TYPE,
+                "box_type_label": box_type_label(row["box_type"]),
                 "description": row["description"],
                 "latitude": row["latitude"],
                 "longitude": row["longitude"],
@@ -2217,6 +2274,8 @@ def build_public_openapi_spec() -> dict[str, Any]:
             "id": {"type": "integer"},
             "csn": {"type": "string"},
             "name": {"type": "string"},
+            "box_type": {"type": "string"},
+            "box_type_label": {"type": "string"},
             "description": {"type": "string"},
             "latitude": {"type": "number"},
             "longitude": {"type": "number"},
@@ -2250,7 +2309,8 @@ def build_public_openapi_spec() -> dict[str, Any]:
             "title": "Civitas Library Public API",
             "version": PUBLIC_API_VERSION,
             "description": (
-                "Community-friendly read API for searching neighborhood mini-library books and shelf locations. "
+                "Community-friendly read API for searching neighborhood mini-library books, shelf locations, "
+                "and other community exchange boxes. "
                 f"Fair-use rate limit: {rate_limit}."
             ),
             "contact": {"email": "civitaslibrary@gmail.com"},

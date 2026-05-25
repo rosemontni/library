@@ -7,6 +7,8 @@ data/uploads/*
 !data/uploads/.gitkeep
 !docs/library-icons/
 !docs/library-icons/*.png
+docs/library-icons/pending-*.png
+docs/local-community-boxes.json
 android-app/.gradle/
 android-app/build/
 android-app/app/build/

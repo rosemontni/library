@@ -6003,12 +6003,14 @@
   ],
   "counts": {
     "books": 400,
-    "libraries": 36
+    "libraries": 37
   },
-  "generated_at": "2026-05-25T01:59:59+00:00",
+  "generated_at": "2026-05-25T03:41:18+00:00",
   "libraries": [
     {
       "book_count": 13,
+      "box_type": "library",
+      "box_type_label": "Little Library",
       "charter_lookup_status": "",
       "charter_number": "",
       "charter_record_checked_at": "",
@@ -6043,6 +6045,8 @@
     },
     {
       "book_count": 8,
+      "box_type": "library",
+      "box_type_label": "Little Library",
       "charter_lookup_status": "",
       "charter_number": "",
       "charter_record_checked_at": "",
@@ -6078,6 +6082,8 @@
     },
     {
       "book_count": 2,
+      "box_type": "library",
+      "box_type_label": "Little Library",
       "charter_lookup_status": "",
       "charter_number": "",
       "charter_record_checked_at": "",
@@ -6111,6 +6117,8 @@
     },
     {
       "book_count": 15,
+      "box_type": "library",
+      "box_type_label": "Little Library",
       "charter_lookup_status": "",
       "charter_number": "",
       "charter_record_checked_at": "",
@@ -6148,6 +6156,8 @@
     },
     {
       "book_count": 7,
+      "box_type": "library",
+      "box_type_label": "Little Library",
       "charter_lookup_status": "",
       "charter_number": "",
       "charter_record_checked_at": "",
@@ -6185,6 +6195,8 @@
     },
     {
       "book_count": 8,
+      "box_type": "library",
+      "box_type_label": "Little Library",
       "charter_lookup_status": "",
       "charter_number": "",
       "charter_record_checked_at": "",
@@ -6221,6 +6233,8 @@
     },
     {
       "book_count": 23,
+      "box_type": "library",
+      "box_type_label": "Little Library",
       "charter_lookup_status": "",
       "charter_number": "",
       "charter_record_checked_at": "",
@@ -6256,6 +6270,8 @@
     },
     {
       "book_count": 32,
+      "box_type": "library",
+      "box_type_label": "Little Library",
       "charter_lookup_status": "not_found",
       "charter_number": "77609",
       "charter_record_checked_at": "2026-05-18T04:30:00+00:00",
@@ -6291,6 +6307,8 @@
     },
     {
       "book_count": 9,
+      "box_type": "library",
+      "box_type_label": "Little Library",
       "charter_lookup_status": "",
       "charter_number": "",
       "charter_record_checked_at": "",
@@ -6326,6 +6344,8 @@
     },
     {
       "book_count": 17,
+      "box_type": "library",
+      "box_type_label": "Little Library",
       "charter_lookup_status": "matched",
       "charter_number": "25739",
       "charter_record_checked_at": "2026-05-18T04:30:00+00:00",
@@ -6361,6 +6381,8 @@
     },
     {
       "book_count": 35,
+      "box_type": "library",
+      "box_type_label": "Little Library",
       "charter_lookup_status": "matched",
       "charter_number": "59788",
       "charter_record_checked_at": "2026-05-18T04:30:00+00:00",
@@ -6396,6 +6418,8 @@
     },
     {
       "book_count": 17,
+      "box_type": "library",
+      "box_type_label": "Little Library",
       "charter_lookup_status": "",
       "charter_number": "",
       "charter_record_checked_at": "",
@@ -6431,6 +6455,8 @@
     },
     {
       "book_count": 20,
+      "box_type": "library",
+      "box_type_label": "Little Library",
       "charter_lookup_status": "location_mismatch",
       "charter_number": "132082",
       "charter_record_checked_at": "2026-05-18T04:30:00+00:00",
@@ -6465,6 +6491,8 @@
     },
     {
       "book_count": 15,
+      "box_type": "library",
+      "box_type_label": "Little Library",
       "charter_lookup_status": "",
       "charter_number": "",
       "charter_record_checked_at": "",
@@ -6500,6 +6528,8 @@
     },
     {
       "book_count": 4,
+      "box_type": "library",
+      "box_type_label": "Little Library",
       "charter_lookup_status": "",
       "charter_number": "",
       "charter_record_checked_at": "",
@@ -6534,6 +6564,8 @@
     },
     {
       "book_count": 20,
+      "box_type": "library",
+      "box_type_label": "Little Library",
       "charter_lookup_status": "not_found",
       "charter_number": "78906",
       "charter_record_checked_at": "2026-05-18T04:30:00+00:00",
@@ -6569,6 +6601,8 @@
     },
     {
       "book_count": 13,
+      "box_type": "library",
+      "box_type_label": "Little Library",
       "charter_lookup_status": "not_found",
       "charter_number": "217939",
       "charter_record_checked_at": "2026-05-18T04:30:00+00:00",
@@ -6604,6 +6638,8 @@
     },
     {
       "book_count": 0,
+      "box_type": "library",
+      "box_type_label": "Little Library",
       "charter_lookup_status": "",
       "charter_number": "",
       "charter_record_checked_at": "",
@@ -6632,6 +6668,8 @@
     },
     {
       "book_count": 20,
+      "box_type": "library",
+      "box_type_label": "Little Library",
       "charter_lookup_status": "matched",
       "charter_number": "126461",
       "charter_record_checked_at": "2026-05-18T04:30:00+00:00",
@@ -6669,6 +6707,8 @@
     },
     {
       "book_count": 1,
+      "box_type": "library",
+      "box_type_label": "Little Library",
       "charter_lookup_status": "",
       "charter_number": "",
       "charter_record_checked_at": "",
@@ -6700,6 +6740,8 @@
     },
     {
       "book_count": 1,
+      "box_type": "library",
+      "box_type_label": "Little Library",
       "charter_lookup_status": "",
       "charter_number": "",
       "charter_record_checked_at": "",
@@ -6730,6 +6772,8 @@
     },
     {
       "book_count": 6,
+      "box_type": "library",
+      "box_type_label": "Little Library",
       "charter_lookup_status": "not_found",
       "charter_number": "227210",
       "charter_record_checked_at": "2026-05-18T23:58:23+00:00",
@@ -6764,6 +6808,8 @@
     },
     {
       "book_count": 0,
+      "box_type": "library",
+      "box_type_label": "Little Library",
       "charter_lookup_status": "",
       "charter_number": "",
       "charter_record_checked_at": "",
@@ -6793,6 +6839,8 @@
     },
     {
       "book_count": 0,
+      "box_type": "library",
+      "box_type_label": "Little Library",
       "charter_lookup_status": "",
       "charter_number": "",
       "charter_record_checked_at": "",
@@ -6821,6 +6869,8 @@
     },
     {
       "book_count": 3,
+      "box_type": "library",
+      "box_type_label": "Little Library",
       "charter_lookup_status": "lookup_pending",
       "charter_number": "127298",
       "charter_record_checked_at": "2026-05-19T10:22:33+00:00",
@@ -6854,6 +6904,8 @@
     },
     {
       "book_count": 4,
+      "box_type": "library",
+      "box_type_label": "Little Library",
       "charter_lookup_status": "lookup_pending",
       "charter_number": "62790",
       "charter_record_checked_at": "2026-05-19T10:22:33+00:00",
@@ -6888,6 +6940,8 @@
     },
     {
       "book_count": 4,
+      "box_type": "library",
+      "box_type_label": "Little Library",
       "charter_lookup_status": "",
       "charter_number": "",
       "charter_record_checked_at": "",
@@ -6922,6 +6976,8 @@
     },
     {
       "book_count": 8,
+      "box_type": "library",
+      "box_type_label": "Little Library",
       "charter_lookup_status": "",
       "charter_number": "",
       "charter_record_checked_at": "",
@@ -6957,6 +7013,8 @@
     },
     {
       "book_count": 10,
+      "box_type": "library",
+      "box_type_label": "Little Library",
       "charter_lookup_status": "",
       "charter_number": "",
       "charter_record_checked_at": "",
@@ -6991,6 +7049,8 @@
     },
     {
       "book_count": 5,
+      "box_type": "library",
+      "box_type_label": "Little Library",
       "charter_lookup_status": "matched",
       "charter_number": "49124",
       "charter_record_checked_at": "2026-05-20T02:24:53+00:00",
@@ -7025,6 +7085,8 @@
     },
     {
       "book_count": 7,
+      "box_type": "library",
+      "box_type_label": "Little Library",
       "charter_lookup_status": "matched",
       "charter_number": "21131",
       "charter_record_checked_at": "2026-05-20T02:24:54+00:00",
@@ -7059,6 +7121,8 @@
     },
     {
       "book_count": 6,
+      "box_type": "library",
+      "box_type_label": "Little Library",
       "charter_lookup_status": "",
       "charter_number": "",
       "charter_record_checked_at": "",
@@ -7094,6 +7158,8 @@
     },
     {
       "book_count": 13,
+      "box_type": "library",
+      "box_type_label": "Little Library",
       "charter_lookup_status": "",
       "charter_number": "",
       "charter_record_checked_at": "",
@@ -7128,6 +7194,8 @@
     },
     {
       "book_count": 22,
+      "box_type": "library",
+      "box_type_label": "Little Library",
       "charter_lookup_status": "matched",
       "charter_number": "81804",
       "charter_record_checked_at": "2026-05-23T19:28:37+00:00",
@@ -7165,6 +7233,8 @@
     },
     {
       "book_count": 13,
+      "box_type": "library",
+      "box_type_label": "Little Library",
       "charter_lookup_status": "lookup_deferred",
       "charter_number": "169244",
       "charter_record_checked_at": "",
@@ -7201,6 +7271,8 @@
     },
     {
       "book_count": 19,
+      "box_type": "library",
+      "box_type_label": "Little Library",
       "charter_lookup_status": "matched",
       "charter_number": "52017",
       "charter_record_checked_at": "2026-05-25T01:59:33+00:00",
@@ -7235,6 +7307,36 @@
         "God Loves Laughter",
         "So Let Me Get This Straight"
       ]
+    },
+    {
+      "book_count": 0,
+      "box_type": "art_gallery",
+      "box_type_label": "Little Art Gallery",
+      "charter_lookup_status": "",
+      "charter_number": "",
+      "charter_record_checked_at": "",
+      "charter_record_distance_miles": null,
+      "created_at": "2026-05-25 03:38:43",
+      "csn": "CSN-38",
+      "description": "Small white Little Art Gallery box with a 'Make Art / Leave Art / Take Art' sign beside a mosaic-covered post in a residential front yard.",
+      "icon_url": "library-icons/csn-0038-mosaic-post-little-art-gallery.png",
+      "id": 38,
+      "latitude": 39.4336722222222,
+      "location_confidence": 0.95,
+      "location_label": "",
+      "location_source": "photo_exif",
+      "longitude": -77.4244305555556,
+      "marker_latitude": 39.4336722222222,
+      "marker_location_source": "photo_exif",
+      "marker_longitude": -77.4244305555556,
+      "name": "Mosaic Post Little Art Gallery",
+      "official_address": "",
+      "place_clues": [
+        "free art gallery sign",
+        "mosaic post",
+        "front yard display box"
+      ],
+      "sample_books": []
     }
   ],
   "privacy": {

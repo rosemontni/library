@@ -14,6 +14,14 @@ from typing import Any
 ROOT_DIR = Path(__file__).resolve().parents[1]
 DEFAULT_DB_PATH = ROOT_DIR / "data" / "little_library_atlas.db"
 DEFAULT_OUTPUT_PATH = ROOT_DIR / "assets" / "library-map.svg"
+DEFAULT_BOX_TYPE = "library"
+BOX_TYPE_LABELS = {
+    "library": "Little Library",
+    "art_gallery": "Little Art Gallery",
+}
+BOX_TYPE_COLORS = {
+    "art_gallery": "#5f57c8",
+}
 
 
 def ensure_column(connection: sqlite3.Connection, table: str, column: str, definition: str) -> None:
@@ -26,6 +34,7 @@ def ensure_column(connection: sqlite3.Connection, table: str, column: str, defin
 class LibraryPoint:
     id: int
     name: str
+    box_type: str
     description: str
     latitude: float
     longitude: float
@@ -39,6 +48,16 @@ class LibraryPoint:
     @property
     def location_label(self) -> str:
         return self.official_address or f"{self.latitude:.4f}, {self.longitude:.4f}"
+
+    @property
+    def type_label(self) -> str:
+        return BOX_TYPE_LABELS.get(self.box_type, BOX_TYPE_LABELS[DEFAULT_BOX_TYPE])
+
+    @property
+    def inventory_label(self) -> str:
+        if self.box_type == "art_gallery":
+            return "art exchange"
+        return f"{self.book_count} book{'s' if self.book_count != 1 else ''}"
 
 
 def escape(value: Any) -> str:
@@ -76,6 +95,11 @@ def format_official_address(raw_value: str | None) -> str:
     return ", ".join(parts)
 
 
+def normalize_box_type(value: Any) -> str:
+    normalized = str(value or "").strip().lower()
+    return normalized if normalized in BOX_TYPE_LABELS else DEFAULT_BOX_TYPE
+
+
 def load_library_points(db_path: Path) -> list[LibraryPoint]:
     if not db_path.exists():
         return []
@@ -83,12 +107,14 @@ def load_library_points(db_path: Path) -> list[LibraryPoint]:
     with sqlite3.connect(db_path) as connection:
         connection.row_factory = sqlite3.Row
         ensure_column(connection, "books", "status", "TEXT NOT NULL DEFAULT 'active'")
+        ensure_column(connection, "libraries", "box_type", "TEXT NOT NULL DEFAULT 'library'")
         ensure_column(connection, "libraries", "charter_record_json", "TEXT")
         rows = connection.execute(
             """
             SELECT
                 l.id,
                 l.name,
+                COALESCE(l.box_type, 'library') AS box_type,
                 l.description,
                 l.latitude,
                 l.longitude,
@@ -109,6 +135,7 @@ def load_library_points(db_path: Path) -> list[LibraryPoint]:
         LibraryPoint(
             id=int(row["id"]),
             name=str(row["name"] or f"Library {row['id']}"),
+            box_type=normalize_box_type(row["box_type"]),
             description=str(row["description"] or ""),
             latitude=float(row["latitude"]),
             longitude=float(row["longitude"]),
@@ -140,7 +167,7 @@ def point_label(index: int) -> str:
 def render_empty_map(updated_at: str) -> str:
     return f"""<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="675" viewBox="0 0 1200 675" role="img" aria-labelledby="title desc">
   <title id="title">Civitas Library map</title>
-  <desc id="desc">No geolocated libraries have been added yet.</desc>
+  <desc id="desc">No geolocated community boxes have been added yet.</desc>
   <rect width="1200" height="675" rx="32" fill="#f7f0df"/>
   <rect x="48" y="48" width="1104" height="579" rx="28" fill="#fffaf0" stroke="#2f3a2f" stroke-width="3"/>
   <text x="86" y="122" fill="#1f2d24" font-family="Georgia, serif" font-size="48" font-weight="700">Civitas Library</text>
@@ -148,7 +175,7 @@ def render_empty_map(updated_at: str) -> str:
   <circle cx="600" cy="344" r="78" fill="#d8ead7" stroke="#5c7b5f" stroke-width="5"/>
   <path d="M600 287c-27 0-49 22-49 49 0 39 49 89 49 89s49-50 49-89c0-27-22-49-49-49z" fill="#c9523d"/>
   <circle cx="600" cy="336" r="18" fill="#fffaf0"/>
-  <text x="600" y="514" text-anchor="middle" fill="#1f2d24" font-family="Arial, sans-serif" font-size="28" font-weight="700">No geolocated libraries yet</text>
+  <text x="600" y="514" text-anchor="middle" fill="#1f2d24" font-family="Arial, sans-serif" font-size="28" font-weight="700">No geolocated community boxes yet</text>
   <text x="600" y="552" text-anchor="middle" fill="#526057" font-family="Arial, sans-serif" font-size="18">Add a photo with GPS coordinates, then rerun scripts/render_library_map.py.</text>
   <text x="86" y="606" fill="#6e756f" font-family="Arial, sans-serif" font-size="15">Updated {escape(updated_at)}</text>
 </svg>
@@ -206,7 +233,7 @@ def render_library_map(db_path: Path = DEFAULT_DB_PATH, output_path: Path = DEFA
 
     for index, (point, (projected_x, projected_y)) in enumerate(zip(points, projected)):
         screen_x, screen_y = to_screen(projected_x, projected_y)
-        color = palette[index % len(palette)]
+        color = BOX_TYPE_COLORS.get(point.box_type, palette[index % len(palette)])
         label = point_label(index)
         csn = escape(point.csn)
         title = escape(point.name)
@@ -214,10 +241,12 @@ def render_library_map(db_path: Path = DEFAULT_DB_PATH, output_path: Path = DEFA
         description = escape(point.description[:94] + ("..." if len(point.description) > 94 else ""))
         described_as_raw = point.description
         described_as = escape(described_as_raw[:106] + ("..." if len(described_as_raw) > 106 else ""))
+        type_label = escape(point.type_label)
+        inventory_label = escape(point.inventory_label)
 
         marker_rows.append(
             f"""    <g class="marker" transform="translate({screen_x:.2f} {screen_y:.2f})">
-      <title>{csn} - {title}: {point.book_count} books. {description}</title>
+      <title>{csn} - {title}: {type_label}, {inventory_label}. {description}</title>
       <path d="M0 -29c-18 0-32 14-32 32 0 25 32 58 32 58S32 28 32 3C32 -15 18 -29 0 -29z" fill="{color}" stroke="#213226" stroke-width="4"/>
       <circle cx="0" cy="2" r="18" fill="#fffaf0"/>
       <text x="0" y="9" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" font-weight="800" fill="#213226">{label}</text>
@@ -230,7 +259,7 @@ def render_library_map(db_path: Path = DEFAULT_DB_PATH, output_path: Path = DEFA
       <circle cx="0" cy="-8" r="18" fill="{color}" stroke="#213226" stroke-width="3"/>
       <text x="0" y="-1" text-anchor="middle" font-family="Arial, sans-serif" font-size="17" font-weight="800" fill="#fffaf0">{label}</text>
       <text x="32" y="-16" font-family="Arial, sans-serif" font-size="19" font-weight="800" fill="#1f2d24">{csn} - {title}</text>
-      <text x="32" y="8" font-family="Arial, sans-serif" font-size="15" fill="#536158">{point.book_count} books at {location_label}</text>
+      <text x="32" y="8" font-family="Arial, sans-serif" font-size="15" fill="#536158">{type_label} · {inventory_label} at {location_label}</text>
       <text x="32" y="30" font-family="Arial, sans-serif" font-size="13" fill="#7a8079">{described_as}</text>
     </g>"""
         )
@@ -268,7 +297,7 @@ def render_library_map(db_path: Path = DEFAULT_DB_PATH, output_path: Path = DEFA
 
     svg = f"""<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}" role="img" aria-labelledby="title desc">
   <title id="title">Civitas Library map</title>
-  <desc id="desc">Map of {len(points)} geolocated mini libraries with numbered markers, Civitas Library Serial Numbers, descriptions, and book counts.</desc>
+  <desc id="desc">Map of {len(points)} geolocated community boxes with numbered markers, Civitas Library Serial Numbers, descriptions, and content summaries.</desc>
   <defs>
     <linearGradient id="paper" x1="0" x2="1" y1="0" y2="1">
       <stop offset="0" stop-color="#fff7e8"/>
@@ -289,7 +318,7 @@ def render_library_map(db_path: Path = DEFAULT_DB_PATH, output_path: Path = DEFA
   <rect width="{width}" height="{height}" rx="34" fill="#263529"/>
   <rect x="18" y="18" width="{width - 36}" height="{height - 36}" rx="30" fill="url(#paper)"/>
   <text x="48" y="68" fill="#1f2d24" font-family="Georgia, serif" font-size="39" font-weight="700">Civitas Library</text>
-  <text x="50" y="99" class="small" font-size="18">Generated map snapshot: {len(points)} libraries, {total_books} books, CSN = database serial ID, centered near {center_lat:.4f}, {center_lon:.4f}</text>
+  <text x="50" y="99" class="small" font-size="18">Generated map snapshot: {len(points)} community boxes, {total_books} books, CSN = database serial ID, centered near {center_lat:.4f}, {center_lon:.4f}</text>
 
   <g>
     <rect x="{map_x}" y="{map_y}" width="{map_w}" height="{map_h}" rx="28" fill="url(#park)" stroke="#253529" stroke-width="4"/>
@@ -301,13 +330,13 @@ def render_library_map(db_path: Path = DEFAULT_DB_PATH, output_path: Path = DEFA
     <circle cx="620" cy="402" r="112" fill="rgba(92, 123, 95, 0.15)"/>
 {chr(10).join(grid_rows)}
 {chr(10).join(marker_rows)}
-    <text x="{map_x + 24}" y="{map_y + 36}" font-family="Arial, sans-serif" font-size="17" font-weight="800" fill="#263529">Geolocated library markers</text>
+    <text x="{map_x + 24}" y="{map_y + 36}" font-family="Arial, sans-serif" font-size="17" font-weight="800" fill="#263529">Geolocated community-box markers</text>
     <text x="{map_x + 24}" y="{map_y + map_h - 22}" class="small" font-size="14">SVG uses Web Mercator projection and local database coordinates.</text>
   </g>
 
   <g>
     <rect x="{side_x - 32}" y="{side_y}" width="336" height="{map_h}" rx="28" fill="#fffaf0" stroke="#253529" stroke-width="3"/>
-    <text x="{side_x - 2}" y="{side_y + 27}" font-family="Arial, sans-serif" font-size="20" font-weight="900" fill="#1f2d24">Libraries</text>
+    <text x="{side_x - 2}" y="{side_y + 27}" font-family="Arial, sans-serif" font-size="20" font-weight="900" fill="#1f2d24">Community boxes</text>
 {chr(10).join(sidebar_rows)}
   </g>
 

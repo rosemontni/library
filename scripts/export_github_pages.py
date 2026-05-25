@@ -17,6 +17,11 @@ DEFAULT_DB_PATH = ROOT_DIR / "data" / "little_library_atlas.db"
 DEFAULT_OUTPUT_PATH = ROOT_DIR / "docs" / "atlas-data.json"
 DEFAULT_ICON_DIR = Path(os.getenv("LIBRARY_ICONS_DIR", str(ROOT_DIR / "docs" / "library-icons")))
 ICON_SIZE = 144
+DEFAULT_BOX_TYPE = "library"
+BOX_TYPE_LABELS = {
+    "library": "Little Library",
+    "art_gallery": "Little Art Gallery",
+}
 
 
 def ensure_column(connection: sqlite3.Connection, table: str, column: str, definition: str) -> None:
@@ -27,6 +32,7 @@ def ensure_column(connection: sqlite3.Connection, table: str, column: str, defin
 
 def ensure_export_schema(connection: sqlite3.Connection) -> None:
     ensure_column(connection, "books", "status", "TEXT NOT NULL DEFAULT 'active'")
+    ensure_column(connection, "libraries", "box_type", "TEXT NOT NULL DEFAULT 'library'")
     ensure_column(connection, "libraries", "icon_path", "TEXT")
     ensure_column(connection, "libraries", "charter_number", "TEXT")
     ensure_column(connection, "libraries", "charter_lookup_status", "TEXT")
@@ -74,6 +80,15 @@ def parse_json_object(raw_value: str | None) -> dict[str, Any]:
     except json.JSONDecodeError:
         return {}
     return parsed if isinstance(parsed, dict) else {}
+
+
+def normalize_box_type(value: Any) -> str:
+    normalized = str(value or "").strip().lower()
+    return normalized if normalized in BOX_TYPE_LABELS else DEFAULT_BOX_TYPE
+
+
+def box_type_label(value: Any) -> str:
+    return BOX_TYPE_LABELS.get(normalize_box_type(value), BOX_TYPE_LABELS[DEFAULT_BOX_TYPE])
 
 
 def slugify_filename(value: str, fallback: str = "library") -> str:
@@ -134,6 +149,7 @@ def load_libraries(connection: sqlite3.Connection) -> list[dict[str, Any]]:
         SELECT
             l.id,
             l.name,
+            COALESCE(l.box_type, 'library') AS box_type,
             l.description,
             l.latitude,
             l.longitude,
@@ -171,6 +187,8 @@ def load_libraries(connection: sqlite3.Connection) -> list[dict[str, Any]]:
                 "id": int(row["id"]),
                 "csn": f"CSN-{int(row['id'])}",
                 "name": row["name"] or f"Library {row['id']}",
+                "box_type": normalize_box_type(row["box_type"]),
+                "box_type_label": box_type_label(row["box_type"]),
                 "description": row["description"] or "",
                 "latitude": row["latitude"],
                 "longitude": row["longitude"],

@@ -10,7 +10,7 @@
       integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
       crossorigin=""
     />
-    <link rel="stylesheet" href="./styles.css?v=release-20260519" />
+    <link rel="stylesheet" href="./styles.css?v=release-20260524-art" />
     <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
   </head>
   <body>
@@ -45,7 +45,7 @@
             </div>
           </div>
           <div class="stats-card">
-            <span><strong id="libraryCount">0</strong> libraries mapped</span>
+            <span><strong id="libraryCount">0</strong> community boxes mapped</span>
             <span><strong id="bookCount">0</strong> active books</span>
             <small id="generatedAt">Loading snapshot...</small>
           </div>
@@ -55,6 +55,7 @@
       <nav class="site-tabs" aria-label="Civitas Library sections">
         <a href="#searchTitle">Search</a>
         <a href="#mapTitle">Live map</a>
+        <a href="#developers">Developers</a>
         <a href="#contribute">How to contribute</a>
         <a href="#builderNotes">A few Words from the Site Builder:</a>
       </nav>
@@ -105,15 +106,15 @@
         <section class="panel map-panel" aria-labelledby="mapTitle">
           <div class="map-heading">
             <div>
-              <h2 id="mapTitle">Zoomable library map</h2>
-              <p class="section-intro">Markers are placed from photo GPS coordinates. Official addresses appear in details when a matching registry record is available.</p>
+              <h2 id="mapTitle">Zoomable community map</h2>
+              <p class="section-intro">Markers are placed from photo GPS coordinates. Book libraries and other neighborhood exchange boxes use distinct marker styles by type.</p>
             </div>
             <button type="button" id="fitMarkers" class="secondary compact">Fit markers</button>
           </div>
           <div id="map" class="map" role="application" aria-label="Zoomable map of indexed mini libraries">
             <div class="map-loading">Loading map...</div>
           </div>
-          <p id="mapStatus" class="note">Markers come from geolocated library records.</p>
+          <p id="mapStatus" class="note">Markers come from geolocated community-box records.</p>
           <section id="databaseSummary" class="database-summary-card" aria-label="Top books and genres across the database"></section>
         </section>
       </section>
@@ -153,6 +154,74 @@
           <strong>Share from Google Photos:</strong>
           <span>Select both photos in Google Photos, tap Share, and share them with <a href="mailto:civitaslibrary@gmail.com">civitaslibrary@gmail.com</a>. Please leave location sharing/GPS metadata enabled.</span>
           <a class="mail-button" href="https://photos.google.com/" rel="noopener noreferrer">Open Google Photos</a>
+        </div>
+      </section>
+
+      <section id="developers" class="panel developer-panel" aria-labelledby="developersTitle">
+        <div class="developer-panel-header">
+          <div>
+            <p class="eyebrow">Developers</p>
+            <h2 id="developersTitle">Build on top of the atlas</h2>
+            <p class="section-intro">
+              Civitas Library keeps the public snapshot photo-private while exposing a small read-only API and a
+              searchable civic dataset for local tools, classroom projects, and neighborhood experiments.
+            </p>
+          </div>
+          <div class="developer-badges" aria-label="Developer highlights">
+            <span>Read-only API</span>
+            <span>CSN identifiers</span>
+            <span>OpenAPI schema</span>
+          </div>
+        </div>
+
+        <div class="developer-grid">
+          <article class="developer-card" aria-labelledby="developerFeaturesTitle">
+            <p class="eyebrow">Feature list</p>
+            <h3 id="developerFeaturesTitle">What the platform already supports</h3>
+            <ul class="developer-list">
+              <li>Search books by title, author, topic, publisher, or ISBN across the shared atlas.</li>
+              <li>Rank results by ZIP centroid or latitude/longitude while keeping map markers tied to photo GPS.</li>
+              <li>Assign every mapped shelf a Civitas Library Serial Number, or CSN, based on database insertion order.</li>
+              <li>Preserve private original uploads while publishing only derived `144x144` shelf icons.</li>
+              <li>Store visible charter numbers and show official registry addresses when a charter match is verified.</li>
+              <li>Keep library records even when a shelf is temporarily empty, with active inventory tracked separately.</li>
+              <li>Publish a static Pages snapshot and a local web app from the same central SQLite atlas.</li>
+            </ul>
+          </article>
+
+          <article class="developer-card developer-card-reference" aria-labelledby="developerApiTitle">
+            <p class="eyebrow">API reference</p>
+            <h3 id="developerApiTitle">Public read endpoints</h3>
+            <p class="note developer-base-url">
+              Local base URL: <code>http://127.0.0.1:8000</code>. Production deployments serve the same paths over
+              HTTPS.
+            </p>
+            <dl class="developer-api-list">
+              <div>
+                <dt><code>GET /api/v1/search</code></dt>
+                <dd>Search books and rank by `zip` or `lat`/`lon`. Useful query params: `q`, `category`, `radius_miles`, and `limit`.</dd>
+              </div>
+              <div>
+                <dt><code>GET /api/v1/libraries</code></dt>
+                <dd>List mapped shelves with CSNs, descriptions, location labels, marker coordinates, charter metadata, icons, and sample books.</dd>
+              </div>
+              <div>
+                <dt><code>GET /api/v1/libraries/{id}</code></dt>
+                <dd>Fetch one library plus its active books for a detail view or lightweight client cache.</dd>
+              </div>
+              <div>
+                <dt><code>GET /api/v1/openapi.json</code></dt>
+                <dd>Download the machine-readable schema for typed clients, docs tooling, or contract checks.</dd>
+              </div>
+            </dl>
+            <div class="developer-callout">
+              <strong>Fair-use defaults</strong>
+              <p>
+                The public API defaults to <code>60</code> requests per <code>60</code> seconds per client IP and
+                returns HTTP <code>429</code> with rate-limit headers when callers need to back off.
+              </p>
+            </div>
+          </article>
         </div>
       </section>
 

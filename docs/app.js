@@ -55,6 +55,11 @@ const LOCAL_ZIP_CENTROIDS = Object.freeze({
   "22301": { latitude: 38.8197, longitude: -77.0584, label: "Alexandria, VA 22301" },
 });
 
+const BOX_TYPE_META = Object.freeze({
+  library: { label: "Little Library", markerLabel: (library) => String(Number(library?.book_count || 0)) },
+  art_gallery: { label: "Little Art Gallery", markerLabel: () => "A" },
+});
+
 function escapeHtml(value) {
   return String(value ?? "")
     .replaceAll("&", "&amp;")
@@ -92,8 +97,84 @@ function formatCount(count, singular, plural = `${singular}s`) {
   return `${value} ${value === 1 ? singular : plural}`;
 }
 
+function libraryBoxType(library) {
+  return library?.box_type === "art_gallery" ? "art_gallery" : "library";
+}
+
+function libraryTypeLabel(library) {
+  if (library?.box_type_label) {
+    return library.box_type_label;
+  }
+  return BOX_TYPE_META[libraryBoxType(library)]?.label || BOX_TYPE_META.library.label;
+}
+
+function libraryMarkerLabel(library) {
+  const boxType = libraryBoxType(library);
+  const markerLabel = BOX_TYPE_META[boxType]?.markerLabel;
+  return typeof markerLabel === "function" ? markerLabel(library) : "0";
+}
+
+function libraryInventorySummary(library) {
+  if (libraryBoxType(library) === "art_gallery") {
+    return "Art exchange";
+  }
+  return formatCount(library?.book_count, "book");
+}
+
 function libraryCsn(library) {
   return library?.csn || (library?.id ? `CSN-${library.id}` : "CSN pending");
+}
+
+
+function mergeAtlasData(baseData, overlayData) {
+  if (!overlayData || typeof overlayData !== "object") {
+    return baseData;
+  }
+
+  const baseLibraries = Array.isArray(baseData?.libraries) ? baseData.libraries : [];
+  const overlayLibraries = Array.isArray(overlayData?.libraries) ? overlayData.libraries : [];
+  const baseBooks = Array.isArray(baseData?.books) ? baseData.books : [];
+  const overlayBooks = Array.isArray(overlayData?.books) ? overlayData.books : [];
+
+  const seenLibraryIds = new Set(baseLibraries.map((library) => String(library?.id ?? "")));
+  const mergedLibraries = [
+    ...overlayLibraries.filter((library) => !seenLibraryIds.has(String(library?.id ?? ""))),
+    ...baseLibraries,
+  ];
+
+  const seenBookIds = new Set(baseBooks.map((book) => String(book?.id ?? book?.book_id ?? "")));
+  const mergedBooks = [
+    ...overlayBooks.filter((book) => !seenBookIds.has(String(book?.id ?? book?.book_id ?? ""))),
+    ...baseBooks,
+  ];
+
+  return {
+    ...baseData,
+    libraries: mergedLibraries,
+    books: mergedBooks,
+    counts: {
+      ...(baseData?.counts || {}),
+      libraries: mergedLibraries.length,
+      books: mergedBooks.length,
+    },
+  };
+}
+
+
+async function loadOptionalLocalCommunityBoxes() {
+  try {
+    const response = await fetch("./local-community-boxes.json", { cache: "no-store" });
+    if (response.status === 404) {
+      return null;
+    }
+    if (!response.ok) {
+      throw new Error(`Could not load local-community-boxes.json (${response.status})`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.warn("Skipping local community-box overlay:", error);
+    return null;
+  }
 }
 
 function formatGeneratedAt(value) {
@@ -444,10 +525,11 @@ function initMap() {
   }).addTo(state.map);
 }
 
-function markerIcon(bookCount = 0) {
+function markerIcon(library) {
+  const boxType = libraryBoxType(library).replaceAll("_", "-");
   return L.divIcon({
-    className: "atlas-marker",
-    html: `<span><b>${Number(bookCount || 0)}</b></span>`,
+    className: `atlas-marker atlas-marker-${boxType}`,
+    html: `<span><b>${escapeHtml(libraryMarkerLabel(library))}</b></span>`,
     iconSize: [40, 46],
     iconAnchor: [20, 42],
     popupAnchor: [0, -38],
@@ -458,6 +540,8 @@ function popupHtml(library) {
   const csn = libraryCsn(library);
   const locationLabel = libraryLocationLabel(library);
   const icon = library.icon_url || "";
+  const typeLabel = libraryTypeLabel(library);
+  const inventorySummary = libraryInventorySummary(library);
   return `
     <article class="popup">
       <div class="popup-head">
@@ -465,7 +549,7 @@ function popupHtml(library) {
         <div>
           <strong>${escapeHtml(csn)} · ${escapeHtml(library.name)}</strong>
           <p>${escapeHtml(library.description || "No description saved.")}</p>
-          <small>${formatCount(library.book_count, "book")} · ${escapeHtml(locationLabel)}</small>
+          <small><span class="popup-type">${escapeHtml(typeLabel)}</span> · ${escapeHtml(inventorySummary)} · ${escapeHtml(locationLabel)}</small>
         </div>
       </div>
     </article>
@@ -491,7 +575,7 @@ function renderMap(libraries) {
   const coordinates = [];
   libraries.filter(hasCoordinates).forEach((library) => {
     const position = libraryMarkerCoordinates(library);
-    const marker = L.marker(position, { icon: markerIcon(library.book_count) })
+    const marker = L.marker(position, { icon: markerIcon(library) })
       .addTo(state.map)
       .bindPopup(popupHtml(library), {
         className: "library-popup",
@@ -507,9 +591,9 @@ function renderMap(libraries) {
     fitMapToMarkers();
     requestAnimationFrame(fitMapToMarkers);
     setTimeout(fitMapToMarkers, 250);
-    elements.mapStatus.textContent = `${coordinates.length} mapped libraries. Scroll, pinch, or double-click to zoom.`;
+    elements.mapStatus.textContent = `${coordinates.length} mapped community boxes. Scroll, pinch, or double-click to zoom.`;
   } else {
-    elements.mapStatus.textContent = "No geolocated libraries in this snapshot.";
+    elements.mapStatus.textContent = "No geolocated community boxes in this snapshot.";
   }
 }
 
@@ -647,7 +731,9 @@ async function loadData() {
   if (!response.ok) {
     throw new Error("Could not load atlas-data.json");
   }
-  state.data = await response.json();
+  const baseData = await response.json();
+  const overlayData = await loadOptionalLocalCommunityBoxes();
+  state.data = mergeAtlasData(baseData, overlayData);
   state.librariesById = new Map((state.data.libraries || []).map((library) => [library.id, library]));
 
   elements.libraryCount.textContent = state.data.counts?.libraries ?? state.data.libraries?.length ?? 0;
