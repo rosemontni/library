@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="675" viewBox="0 0 1200 675" role="img" aria-labelledby="title desc">
   <title id="title">Civitas Library map</title>
-  <desc id="desc">Map of 47 geolocated community boxes with numbered markers, Civitas Library Serial Numbers, descriptions, and content summaries.</desc>
+  <desc id="desc">Map of 48 geolocated community boxes with numbered markers, Civitas Library Serial Numbers, descriptions, and content summaries.</desc>
   <defs>
     <linearGradient id="paper" x1="0" x2="1" y1="0" y2="1">
       <stop offset="0" stop-color="#fff7e8"/>
@@ -21,7 +21,7 @@
   <rect width="1200" height="675" rx="34" fill="#263529"/>
   <rect x="18" y="18" width="1164" height="639" rx="30" fill="url(#paper)"/>
   <text x="48" y="68" fill="#1f2d24" font-family="Georgia, serif" font-size="39" font-weight="700">Civitas Library</text>
-  <text x="50" y="99" class="small" font-size="18">Generated map snapshot: 47 community boxes, 667 books, CSN = database serial ID, centered near 40.7048, -76.6989</text>
+  <text x="50" y="99" class="small" font-size="18">Generated map snapshot: 48 community boxes, 678 books, CSN = database serial ID, centered near 40.7381, -76.8446</text>
 
   <g>
     <rect x="48" y="126" width="752" height="484" rx="28" fill="url(#park)" stroke="#253529" stroke-width="4"/>
@@ -332,6 +332,12 @@
       <path d="M0 -29c-18 0-32 14-32 32 0 25 32 58 32 58S32 28 32 3C32 -15 18 -29 0 -29z" fill="#d66a72" stroke="#213226" stroke-width="4"/>
       <circle cx="0" cy="2" r="18" fill="#fffaf0"/>
       <text x="0" y="9" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" font-weight="800" fill="#213226">47</text>
+    </g>
+    <g class="marker" transform="translate(327.24 429.62)">
+      <title>CSN-49 - Green Floral Take-a-Book Cabinet: Little Library, 11 books. Small indoor book cabinet with a green glass-paneled door, yellow frame, painted red flowers a...</title>
+      <path d="M0 -29c-18 0-32 14-32 32 0 25 32 58 32 58S32 28 32 3C32 -15 18 -29 0 -29z" fill="#2f757f" stroke="#213226" stroke-width="4"/>
+      <circle cx="0" cy="2" r="18" fill="#fffaf0"/>
+      <text x="0" y="9" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" font-weight="800" fill="#213226">48</text>
     </g>
     <text x="72" y="162" font-family="Arial, sans-serif" font-size="17" font-weight="800" fill="#263529">Geolocated community-box markers</text>
     <text x="72" y="588" class="small" font-size="14">SVG uses Web Mercator projection and local database coordinates.</text>
@@ -669,7 +675,14 @@
       <text x="32" y="8" font-family="Arial, sans-serif" font-size="15" fill="#536158">Little Library · 80 books at 39.0016, -77.1022</text>
       <text x="32" y="30" font-family="Arial, sans-serif" font-size="13" fill="#7a8079">Indoor glass-front cabinet with book swap labels for Science &amp; Medicine, Fiction, and Nonfiction. Original...</text>
     </g>
+    <g transform="translate(832 3362)">
+      <circle cx="0" cy="-8" r="18" fill="#2f757f" stroke="#213226" stroke-width="3"/>
+      <text x="0" y="-1" text-anchor="middle" font-family="Arial, sans-serif" font-size="17" font-weight="800" fill="#fffaf0">48</text>
+      <text x="32" y="-16" font-family="Arial, sans-serif" font-size="19" font-weight="800" fill="#1f2d24">CSN-49 - Green Floral Take-a-Book Cabinet</text>
+      <text x="32" y="8" font-family="Arial, sans-serif" font-size="15" fill="#536158">Little Library · 11 books at 42.3050, -83.6946</text>
+      <text x="32" y="30" font-family="Arial, sans-serif" font-size="13" fill="#7a8079">Small indoor book cabinet with a green glass-paneled door, yellow frame, painted red flowers and white scr...</text>
+    </g>
   </g>
 
-  <text x="48" y="644" class="small" font-size="14">Updated 2026-10-04 22:07 UTC by scripts/render_library_map.py. Photo uploads and SQLite data stay out of Git.</text>
+  <text x="48" y="644" class="small" font-size="14">Updated 2026-10-04 23:16 UTC by scripts/render_library_map.py. Photo uploads and SQLite data stay out of Git.</text>
 </svg>
