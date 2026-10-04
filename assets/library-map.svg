@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="675" viewBox="0 0 1200 675" role="img" aria-labelledby="title desc">
   <title id="title">Civitas Library map</title>
-  <desc id="desc">Map of 48 geolocated community boxes with numbered markers, Civitas Library Serial Numbers, descriptions, and content summaries.</desc>
+  <desc id="desc">Map of 51 geolocated community boxes with numbered markers, Civitas Library Serial Numbers, descriptions, and content summaries.</desc>
   <defs>
     <linearGradient id="paper" x1="0" x2="1" y1="0" y2="1">
       <stop offset="0" stop-color="#fff7e8"/>
@@ -21,7 +21,7 @@
   <rect width="1200" height="675" rx="34" fill="#263529"/>
   <rect x="18" y="18" width="1164" height="639" rx="30" fill="url(#paper)"/>
   <text x="48" y="68" fill="#1f2d24" font-family="Georgia, serif" font-size="39" font-weight="700">Civitas Library</text>
-  <text x="50" y="99" class="small" font-size="18">Generated map snapshot: 48 community boxes, 678 books, CSN = database serial ID, centered near 40.7381, -76.8446</text>
+  <text x="50" y="99" class="small" font-size="18">Generated map snapshot: 51 community boxes, 712 books, CSN = database serial ID, centered near 40.6495, -76.8688</text>
 
   <g>
     <rect x="48" y="126" width="752" height="484" rx="28" fill="url(#park)" stroke="#253529" stroke-width="4"/>
@@ -82,7 +82,7 @@
       <text x="0" y="9" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" font-weight="800" fill="#213226">5</text>
     </g>
     <g class="marker" transform="translate(357.83 479.22)">
-      <title>CSN-6 - Indoor Take-a-Book Rack: Little Library, 8 books. An indoor take-a-book, leave-a-book rack with wire shelves, posted against a wall with a large...</title>
+      <title>CSN-6 - Indoor Take-a-Book Rack: Little Library, 11 books. Indoor wire take-a-book rack against a stone-pattern wall. June 8, 2026 photo matches the exis...</title>
       <path d="M0 -29c-18 0-32 14-32 32 0 25 32 58 32 58S32 28 32 3C32 -15 18 -29 0 -29z" fill="#7a633c" stroke="#213226" stroke-width="4"/>
       <circle cx="0" cy="2" r="18" fill="#fffaf0"/>
       <text x="0" y="9" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" font-weight="800" fill="#213226">6</text>
@@ -339,6 +339,24 @@
       <circle cx="0" cy="2" r="18" fill="#fffaf0"/>
       <text x="0" y="9" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" font-weight="800" fill="#213226">48</text>
     </g>
+    <g class="marker" transform="translate(357.82 479.22)">
+      <title>CSN-50 - Wooden Take-a-Book Display Shelf: Little Library, 4 books. Indoor low wooden bookcase with four books displayed face-up on top and a Take a book / Leave ...</title>
+      <path d="M0 -29c-18 0-32 14-32 32 0 25 32 58 32 58S32 28 32 3C32 -15 18 -29 0 -29z" fill="#c94f3d" stroke="#213226" stroke-width="4"/>
+      <circle cx="0" cy="2" r="18" fill="#fffaf0"/>
+      <text x="0" y="9" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" font-weight="800" fill="#213226">49</text>
+    </g>
+    <g class="marker" transform="translate(356.73 474.19)">
+      <title>CSN-51 - Wooden Children&#x27;s Book Shelf: Little Library, 12 books. Natural wood shelf with children&#x27;s books, novels, and picture books leaning at the right. Capt...</title>
+      <path d="M0 -29c-18 0-32 14-32 32 0 25 32 58 32 58S32 28 32 3C32 -15 18 -29 0 -29z" fill="#e2a236" stroke="#213226" stroke-width="4"/>
+      <circle cx="0" cy="2" r="18" fill="#fffaf0"/>
+      <text x="0" y="9" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" font-weight="800" fill="#213226">50</text>
+    </g>
+    <g class="marker" transform="translate(356.76 474.25)">
+      <title>CSN-52 - Red Simplay3 Book Box: Little Library, 15 books. Red molded-plastic Simplay3 book-sharing box with a white door, photographed open. Includes ch...</title>
+      <path d="M0 -29c-18 0-32 14-32 32 0 25 32 58 32 58S32 28 32 3C32 -15 18 -29 0 -29z" fill="#477c66" stroke="#213226" stroke-width="4"/>
+      <circle cx="0" cy="2" r="18" fill="#fffaf0"/>
+      <text x="0" y="9" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" font-weight="800" fill="#213226">51</text>
+    </g>
     <text x="72" y="162" font-family="Arial, sans-serif" font-size="17" font-weight="800" fill="#263529">Geolocated community-box markers</text>
     <text x="72" y="588" class="small" font-size="14">SVG uses Web Mercator projection and local database coordinates.</text>
   </g>
@@ -385,8 +403,8 @@
       <circle cx="0" cy="-8" r="18" fill="#7a633c" stroke="#213226" stroke-width="3"/>
       <text x="0" y="-1" text-anchor="middle" font-family="Arial, sans-serif" font-size="17" font-weight="800" fill="#fffaf0">6</text>
       <text x="32" y="-16" font-family="Arial, sans-serif" font-size="19" font-weight="800" fill="#1f2d24">CSN-6 - Indoor Take-a-Book Rack</text>
-      <text x="32" y="8" font-family="Arial, sans-serif" font-size="15" fill="#536158">Little Library · 8 books at 39.0043, -77.1003</text>
-      <text x="32" y="30" font-family="Arial, sans-serif" font-size="13" fill="#7a8079">An indoor take-a-book, leave-a-book rack with wire shelves, posted against a wall with a large sign above ...</text>
+      <text x="32" y="8" font-family="Arial, sans-serif" font-size="15" fill="#536158">Little Library · 11 books at 39.0043, -77.1002</text>
+      <text x="32" y="30" font-family="Arial, sans-serif" font-size="13" fill="#7a8079">Indoor wire take-a-book rack against a stone-pattern wall. June 8, 2026 photo matches the existing CSN-6 r...</text>
     </g>
     <g transform="translate(832 574)">
       <circle cx="0" cy="-8" r="18" fill="#d66a72" stroke="#213226" stroke-width="3"/>
@@ -682,7 +700,28 @@
       <text x="32" y="8" font-family="Arial, sans-serif" font-size="15" fill="#536158">Little Library · 11 books at 42.3050, -83.6946</text>
       <text x="32" y="30" font-family="Arial, sans-serif" font-size="13" fill="#7a8079">Small indoor book cabinet with a green glass-paneled door, yellow frame, painted red flowers and white scr...</text>
     </g>
+    <g transform="translate(832 3430)">
+      <circle cx="0" cy="-8" r="18" fill="#c94f3d" stroke="#213226" stroke-width="3"/>
+      <text x="0" y="-1" text-anchor="middle" font-family="Arial, sans-serif" font-size="17" font-weight="800" fill="#fffaf0">49</text>
+      <text x="32" y="-16" font-family="Arial, sans-serif" font-size="19" font-weight="800" fill="#1f2d24">CSN-50 - Wooden Take-a-Book Display Shelf</text>
+      <text x="32" y="8" font-family="Arial, sans-serif" font-size="15" fill="#536158">Little Library · 4 books at 39.0042, -77.1013</text>
+      <text x="32" y="30" font-family="Arial, sans-serif" font-size="13" fill="#7a8079">Indoor low wooden bookcase with four books displayed face-up on top and a Take a book / Leave a book sign....</text>
+    </g>
+    <g transform="translate(832 3498)">
+      <circle cx="0" cy="-8" r="18" fill="#e2a236" stroke="#213226" stroke-width="3"/>
+      <text x="0" y="-1" text-anchor="middle" font-family="Arial, sans-serif" font-size="17" font-weight="800" fill="#fffaf0">50</text>
+      <text x="32" y="-16" font-family="Arial, sans-serif" font-size="19" font-weight="800" fill="#1f2d24">CSN-51 - Wooden Children&#x27;s Book Shelf</text>
+      <text x="32" y="8" font-family="Arial, sans-serif" font-size="15" fill="#536158">Little Library · 12 books at 39.3468, -77.3360</text>
+      <text x="32" y="30" font-family="Arial, sans-serif" font-size="13" fill="#7a8079">Natural wood shelf with children&#x27;s books, novels, and picture books leaning at the right. Capture time fro...</text>
+    </g>
+    <g transform="translate(832 3566)">
+      <circle cx="0" cy="-8" r="18" fill="#477c66" stroke="#213226" stroke-width="3"/>
+      <text x="0" y="-1" text-anchor="middle" font-family="Arial, sans-serif" font-size="17" font-weight="800" fill="#fffaf0">51</text>
+      <text x="32" y="-16" font-family="Arial, sans-serif" font-size="19" font-weight="800" fill="#1f2d24">CSN-52 - Red Simplay3 Book Box</text>
+      <text x="32" y="8" font-family="Arial, sans-serif" font-size="15" fill="#536158">Little Library · 15 books at 39.3429, -77.3298</text>
+      <text x="32" y="30" font-family="Arial, sans-serif" font-size="13" fill="#7a8079">Red molded-plastic Simplay3 book-sharing box with a white door, photographed open. Includes children&#x27;s boo...</text>
+    </g>
   </g>
 
-  <text x="48" y="644" class="small" font-size="14">Updated 2026-10-04 23:16 UTC by scripts/render_library_map.py. Photo uploads and SQLite data stay out of Git.</text>
+  <text x="48" y="644" class="small" font-size="14">Updated 2026-10-04 23:32 UTC by scripts/render_library_map.py. Photo uploads and SQLite data stay out of Git.</text>
 </svg>
