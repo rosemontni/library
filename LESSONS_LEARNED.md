@@ -301,6 +301,10 @@ The interrupted rebase retained pantry support in the app but omitted it from th
 
 On Windows, the new SQLite export test initially left connections awaiting garbage collection, preventing temporary-directory cleanup. Follow the existing tests' explicit garbage-collection pattern. Generated exports now use LF line endings to avoid spurious whitespace failures. Git operations requiring elevated access must use an explicit repository path because the elevated process can start elsewhere.
 
+### 17. Reflections require a second title review
+
+During the September 1 book-swap photo intake, a detail crop corrected three initial spine readings before publication, including The Unequal Burden of Cancer and the 2011 Federal Manager's Guide. Update both the reviewed metadata and database search text when correcting an imported title. An apostrophe also caused a syntax error in the private intake script before any database write; use matching quote styles and validate scripts before execution.
+
 ## Standing Checklist
 
 Use this checklist before any future "all clear" statement.
