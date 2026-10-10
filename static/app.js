@@ -354,7 +354,8 @@ function popupHtml(library) {
   const typeLabel = libraryTypeLabel(library);
   const inventorySummary = libraryInventorySummary(library);
   const sampleBooks = (library.sample_books || [])
-    .map((title) => `<li>${escapeHtml(title)}</li>`)
+    .slice(0, 3)
+    .map((title) => `<li title="${escapeHtml(title)}">${escapeHtml(title)}</li>`)
     .join("");
   return `
     <article class="map-popup">
@@ -366,7 +367,7 @@ function popupHtml(library) {
           <small>${escapeHtml(typeLabel)} Â· ${escapeHtml(inventorySummary)} Â· ${escapeHtml(locationLabel)}</small>
         </div>
       </div>
-      ${sampleBooks ? `<ul>${sampleBooks}</ul>` : ""}
+      ${sampleBooks ? `<ul class="popup-book-titles" aria-label="Book titles">${sampleBooks}</ul>${Number(library.book_count) > 3 ? `<p class="popup-books-more">More books on this shelf</p>` : ""}` : ""}
     </article>
   `;
 }

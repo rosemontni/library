@@ -19,10 +19,15 @@ const elements = {
   locationStatus: document.getElementById("locationStatus"),
   quickSearches: Array.from(document.querySelectorAll("[data-query]")),
   results: document.getElementById("results"),
+  allBooksResults: document.getElementById("allBooksResults"),
+  retryAllBooks: document.getElementById("retryAllBooks"),
   map: document.getElementById("map"),
   mapStatus: document.getElementById("mapStatus"),
   fitMarkers: document.getElementById("fitMarkers"),
   databaseSummary: document.getElementById("databaseSummary"),
+  searchControls: document.getElementById("searchControls"),
+  retryLoad: document.getElementById("retryLoad"),
+  clearLocation: document.getElementById("clearLocation"),
 };
 
 const LOCAL_ZIP_CENTROIDS = Object.freeze({
@@ -547,6 +552,13 @@ function popupHtml(library) {
   const icon = library.icon_url || "";
   const typeLabel = libraryTypeLabel(library);
   const inventorySummary = libraryInventorySummary(library);
+  const catalogTitles = (state.data?.books || [])
+    .filter(book => String(book.library_id) === String(library.id))
+    .map(book => book.title);
+  const titles = [...new Set((catalogTitles.length ? catalogTitles : library.sample_books || [])
+    .map(title => String(title || "").trim()).filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b, "en", { sensitivity: "base", numeric: true }));
+  const bookList = titles.slice(0, 3).map(title => `<li title="${escapeHtml(title)}">${escapeHtml(title)}</li>`).join("");
   return `
     <article class="popup">
       <div class="popup-head">
@@ -557,6 +569,7 @@ function popupHtml(library) {
           <small><span class="popup-type">${escapeHtml(typeLabel)}</span> Â· ${escapeHtml(inventorySummary)} Â· ${escapeHtml(locationLabel)}</small>
         </div>
       </div>
+      ${bookList ? `<ul class="popup-book-titles" aria-label="Book titles">${bookList}</ul>${Math.max(titles.length, Number(library.book_count) || 0) > 3 ? `<p class="popup-books-more">More books on this shelf</p>` : ""}` : ""}
     </article>
   `;
 }
@@ -580,7 +593,8 @@ function renderMap(libraries) {
   const coordinates = [];
   libraries.filter(hasCoordinates).forEach((library) => {
     const position = libraryMarkerCoordinates(library);
-    const marker = L.marker(position, { icon: markerIcon(library) })
+    const markerLabel = `${libraryCsn(library)} · ${library.name} · ${libraryInventorySummary(library)}`;
+    const marker = L.marker(position, { icon: markerIcon(library), title: markerLabel, alt: markerLabel })
       .addTo(state.map)
       .bindPopup(popupHtml(library), {
         className: "library-popup",
@@ -608,7 +622,10 @@ function focusLibrary(libraryId) {
   if (!library || !marker || !state.map || !hasCoordinates(library)) {
     return;
   }
-  state.map.flyTo(libraryMarkerCoordinates(library), Math.max(state.map.getZoom(), 15), { duration: 0.7 });
+  const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  document.getElementById("mapTitle").focus();
+  state.map.invalidateSize();
+  state.map.flyTo(libraryMarkerCoordinates(library), Math.max(state.map.getZoom(), 15), { duration: 0.7, animate: !reducedMotion });
   marker.openPopup();
 }
 
@@ -654,54 +671,93 @@ function renderDatabaseSummary() {
   `;
 }
 
-function renderResults(results, query) {
-  if (!query.trim()) {
-    elements.results.innerHTML = `<div class="empty-state">Search for a title, author, ISBN, publisher, or topic to find matching books.</div>`;
+function renderResults(results, query, container = elements.results, catalog = false) {
+  if (!catalog && !query.trim()) {
+    container.innerHTML = `<div class="empty-state"><h3>Not sure what to read?</h3><p>Try a topic above, or explore the community shelves on the map.</p><a href="#mapTitle">Explore the library map →</a></div>`;
+    return;
+  }
+
+  if (catalog && !results.length) {
+    container.innerHTML = `<div class="empty-state">No books are cataloged yet.</div>`;
     return;
   }
 
   if (!results.length) {
-    elements.results.innerHTML = `<div class="empty-state">No books matched "${escapeHtml(query)}" in this snapshot. Try a broader term.</div>`;
+    container.innerHTML = `<div class="empty-state"><h3>No books matched “${escapeHtml(query)}”</h3><p>Try a shorter title, another topic, or a wider radius. This catalog only includes shelves shared by neighbors.</p><button type="button" class="secondary" id="clearSearch">Clear search</button></div>`;
+    document.getElementById("clearSearch").addEventListener("click", () => {
+      elements.searchQuery.value = "";
+      runSearch();
+      elements.searchQuery.focus();
+    });
     return;
   }
 
-  elements.results.innerHTML = "";
+  container.innerHTML = "";
   const heading = document.createElement("div");
   heading.className = "note";
-  heading.textContent = `${results.length} result${results.length === 1 ? "" : "s"} for "${query}".`;
-  elements.results.appendChild(heading);
+  heading.textContent = catalog ? `${formatCount(results.length, "book")} · Sorted by title (A–Z)` : `${results.length === 40 ? "Showing up to 40" : results.length} result${results.length === 1 ? "" : "s"} for “${query}”. Books may have moved since they were photographed.`;
+  container.appendChild(heading);
 
   results.forEach(({ book, library, distanceMiles }) => {
     const card = document.createElement("article");
     card.className = "result-card";
-    const distance = distanceMiles === null || distanceMiles === undefined ? "" : `<span>${distanceMiles.toFixed(1)} mi away</span>`;
+    const distance = distanceMiles === null || distanceMiles === undefined ? "" : `<span class="distance">${distanceMiles.toFixed(1)} mi away</span>`;
     card.innerHTML = `
       <div>
         <h3>${escapeHtml(book.title)}</h3>
-        <p>${escapeHtml([book.author, book.genre, book.publisher, book.published_year].filter(Boolean).join(" Â· ") || "Metadata incomplete")}</p>
+        ${book.author ? `<p class="book-author">${escapeHtml(book.author)}</p>` : ""}
       </div>
       <div class="card-meta">
-        <span>${escapeHtml(library ? `${libraryCsn(library)} Â· ${library.name}` : "Unknown library")}</span>
-        <span>${escapeHtml(book.format || "format unknown")}</span>
+        <span class="shelf-name">${escapeHtml(library?.name || "Unknown library")}</span>
         ${distance}
       </div>
-      ${book.notes ? `<p>${escapeHtml(book.notes)}</p>` : ""}
+      ${library ? `<p>${escapeHtml(libraryLocationLabel(library))}</p>` : ""}
+      <details class="book-details"><summary>Book details</summary>
+        <p>${escapeHtml([book.genre, book.publisher, book.published_year, book.format].filter(Boolean).join(" · ") || "No additional details yet.")}</p>
+        ${book.isbn ? `<p>ISBN: ${escapeHtml(book.isbn)}</p>` : ""}
+        ${library ? `<p>Shelf reference: ${escapeHtml(libraryCsn(library))}</p>` : ""}
+        ${book.notes ? `<p>${escapeHtml(book.notes)}</p>` : ""}
+      </details>
     `;
 
     if (library && hasCoordinates(library)) {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.className = "secondary";
-      button.textContent = "Show on map";
-      button.addEventListener("click", () => focusLibrary(library.id));
-      card.appendChild(button);
+      const actions = document.createElement("div");
+      actions.className = "result-actions";
+      if (state.map) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "secondary";
+        button.textContent = "Show on map";
+        button.addEventListener("click", () => focusLibrary(library.id));
+        actions.appendChild(button);
+      }
+      const directions = document.createElement("a");
+      directions.textContent = "Directions";
+      directions.href = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(libraryMarkerCoordinates(library).join(","))}`;
+      directions.target = "_blank";
+      directions.rel = "noopener noreferrer";
+      directions.setAttribute("aria-label", "Directions (opens in a new tab)");
+      actions.appendChild(directions);
+      card.appendChild(actions);
     }
 
-    elements.results.appendChild(card);
+    container.appendChild(card);
   });
 }
 
+function renderAllBooks() {
+  if (!state.data || document.getElementById("allBooks").hidden) return;
+  const titles = new Intl.Collator("en", { sensitivity: "base", numeric: true });
+  const books = [...(state.data.books || [])].sort((a, b) =>
+    titles.compare(String(a.title || "").trim(), String(b.title || "").trim()) ||
+    titles.compare(String(a.author || ""), String(b.author || ""))
+  );
+  renderResults(books.map(book => ({ book, library: state.librariesById.get(book.library_id) })), "", elements.allBooksResults, true);
+  elements.allBooksResults.setAttribute("aria-busy", "false");
+}
+
 function runSearch() {
+  if (!state.data) return;
   const query = elements.searchQuery.value;
   renderResults(searchBooks(query), query);
 }
@@ -709,11 +765,12 @@ function runSearch() {
 function setLocation(latitude, longitude, label = "Using your location for distance ranking.", source = "manual") {
   state.searchLocation = { latitude: Number(latitude), longitude: Number(longitude), source };
   elements.locationStatus.textContent = label;
+  elements.clearLocation.hidden = true;
 }
 
 async function useBrowserLocation() {
   if (!navigator.geolocation) {
-    elements.locationStatus.textContent = "This browser does not support geolocation.";
+    elements.locationStatus.textContent = "Location is unavailable. Enter a ZIP code to find nearby matches.";
     return;
   }
 
@@ -725,13 +782,22 @@ async function useBrowserLocation() {
       runSearch();
     },
     (error) => {
-      elements.locationStatus.textContent = error.message || "Location permission was denied.";
+      elements.locationStatus.textContent = "Could not use your location. Enter a ZIP code instead, or search all locations.";
+      elements.clearLocation.hidden = false;
     },
     { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 }
   );
 }
 
 async function loadData() {
+  elements.searchControls.disabled = true;
+  elements.quickSearches.forEach(button => { button.disabled = true; });
+  elements.retryLoad.hidden = true;
+  elements.retryAllBooks.hidden = true;
+  elements.allBooksResults.setAttribute("aria-busy", "true");
+  elements.allBooksResults.textContent = "Loading the book catalog…";
+  elements.results.setAttribute("aria-busy", "true");
+  elements.results.textContent = "Loading the book catalog…";
   const response = await fetch("./atlas-data.json", { cache: "no-store" });
   if (!response.ok) {
     throw new Error("Could not load atlas-data.json");
@@ -747,7 +813,12 @@ async function loadData() {
 
   renderMap(state.data.libraries || []);
   renderDatabaseSummary();
+  renderAllBooks();
   renderResults([], "");
+  elements.searchControls.disabled = false;
+  elements.quickSearches.forEach(button => { button.disabled = false; });
+  elements.fitMarkers.disabled = !state.map;
+  elements.results.setAttribute("aria-busy", "false");
 }
 
 elements.searchForm.addEventListener("submit", async (event) => {
@@ -763,13 +834,22 @@ elements.searchForm.addEventListener("submit", async (event) => {
         "zip"
       );
     } catch (error) {
-      elements.locationStatus.textContent = error.message;
+      elements.locationStatus.textContent = "Could not find that ZIP code. Check it and try again, or search all locations.";
+      elements.clearLocation.hidden = false;
       return;
     }
   } else if (state.searchLocation?.source !== "browser") {
     state.searchLocation = null;
     elements.locationStatus.textContent = "Searching all libraries. Add a ZIP code to sort by distance.";
   }
+  runSearch();
+});
+
+elements.clearLocation.addEventListener("click", () => {
+  state.searchLocation = null;
+  elements.zipCode.value = "";
+  elements.clearLocation.hidden = true;
+  elements.locationStatus.textContent = "Searching all locations. Add a ZIP code any time.";
   runSearch();
 });
 
@@ -786,8 +866,25 @@ elements.fitMarkers.addEventListener("click", () => {
   fitMapToMarkers();
 });
 
-loadData().catch((error) => {
+function showLoadError() {
   elements.map.innerHTML = `<div class="map-loading">Could not load the atlas snapshot.</div>`;
-  elements.results.innerHTML = `<div class="empty-state">${escapeHtml(error.message)}</div>`;
-  elements.generatedAt.textContent = "Snapshot failed to load";
-});
+  elements.results.innerHTML = `<div class="empty-state">We couldn't load the book catalog. Check your connection and try again.</div>`;
+  elements.results.setAttribute("aria-busy", "false");
+  elements.allBooksResults.textContent = "We couldn’t load the book catalog. Check your connection and try again.";
+  elements.allBooksResults.setAttribute("aria-busy", "false");
+  elements.retryAllBooks.hidden = false;
+  elements.generatedAt.textContent = "Snapshot unavailable";
+  elements.retryLoad.hidden = false;
+}
+
+function revealLinkedSection() {
+  document.getElementById("allBooks").hidden = window.location.hash !== "#allBooks";
+  renderAllBooks();
+  const target = document.getElementById(window.location.hash.slice(1));
+  if (target?.tagName === "DETAILS") target.open = true;
+}
+window.addEventListener("hashchange", revealLinkedSection);
+revealLinkedSection();
+elements.retryAllBooks.addEventListener("click", () => { loadData().catch(showLoadError); });
+elements.retryLoad.addEventListener("click", () => { loadData().catch(showLoadError); });
+loadData().catch(showLoadError);

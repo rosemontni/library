@@ -967,3 +967,21 @@ td input {
     height: 180px;
   }
 }
+
+/* Keep shelf previews compact even when book titles are long. */
+.popup .popup-book-titles, .map-popup .popup-book-titles {
+  margin: 0.25rem 0.85rem 0.65rem;
+  padding-left: 1rem;
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+.popup-book-titles li {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.popup .popup-books-more, .map-popup .popup-books-more {
+  margin: 0 0.85rem 0.75rem;
+  font-size: 0.78rem;
+  color: var(--muted);
+}

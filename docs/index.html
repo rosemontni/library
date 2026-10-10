@@ -4,73 +4,50 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Civitas Library</title>
+    <meta name="description" content="Find books in neighborhood mini libraries. Explore shelves photographed by neighbors and help grow the community catalog." />
     <link
       rel="stylesheet"
       href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
       integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
       crossorigin=""
     />
-    <link rel="stylesheet" href="./styles.css?v=release-20260525-pantry" />
+    <link rel="stylesheet" href="./styles.css?v=all-books-20261010" />
     <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
   </head>
   <body>
+    <a class="skip-link" href="#searchTitle">Skip to search</a>
     <main class="page-shell">
+      <div class="site-header">
+        <a class="brand-mark" href="#" aria-label="Civitas Library home"><span>CL</span><strong>Civitas Library</strong></a>
+        <nav class="site-tabs" aria-label="Main navigation">
+          <a href="#searchTitle">Explore</a>
+          <a href="#allBooks">All Books</a>
+          <a href="#contribute">Contribute</a>
+          <a href="#about">About</a>
+        </nav>
+      </div>
       <header class="hero">
         <div class="hero-copy">
-          <a class="brand-mark" href="#mapTitle" aria-label="Civitas Library home">
-            <span>CL</span>
-            <strong>Civitas Library</strong>
-          </a>
-          <h1>Find the book hiding down the block.</h1>
+          <p class="eyebrow">Shared shelves. Unexpected discoveries.</p>
+          <h1>Find a book near you.</h1>
           <p class="lede">
-            A community-built map of mini libraries, photographed by neighbors and searchable by title,
-            genre, or ZIP code. The public snapshot keeps original photos private while small derived icons make nearby
-            books easier to discover.
+            Explore neighborhood mini libraries, photographed by neighbors. Your next good read might be just down the street.
           </p>
-          <div class="hero-actions" aria-label="Primary actions">
-            <a class="primary-link" href="#searchTitle">Search nearby books</a>
-            <a class="secondary-link" href="#contribute">Contribute photos</a>
-          </div>
         </div>
-        <aside class="hero-visual" aria-label="Civitas Library snapshot">
-          <div class="shelf-card">
-            <span class="shelf-roof"></span>
-            <div class="shelf-window">
-              <i style="--h: 72%; --c: #b84d32"></i>
-              <i style="--h: 56%; --c: #315f4c"></i>
-              <i style="--h: 84%; --c: #263b5e"></i>
-              <i style="--h: 64%; --c: #d49b3d"></i>
-              <i style="--h: 76%; --c: #7a4f7f"></i>
-              <i style="--h: 48%; --c: #4f7d86"></i>
-            </div>
-          </div>
-          <div class="stats-card">
-            <span><strong id="libraryCount">0</strong> community boxes mapped</span>
-            <span><strong id="bookCount">0</strong> active books</span>
-            <small id="generatedAt">Loading snapshot...</small>
-          </div>
-        </aside>
       </header>
-
-      <nav class="site-tabs" aria-label="Civitas Library sections">
-        <a href="#searchTitle">Search</a>
-        <a href="#mapTitle">Live map</a>
-        <a href="#developers">Developers</a>
-        <a href="#contribute">How to contribute</a>
-        <a href="#builderNotes">A few Words from the Site Builder:</a>
-      </nav>
 
       <section class="workspace">
         <section class="panel search-panel" aria-labelledby="searchTitle">
-          <h2 id="searchTitle">Look for a book</h2>
-          <p class="section-intro">Search the whole database, then use ZIP code or browser location to sort by distance.</p>
+          <h2 id="searchTitle" tabindex="-1">What will you find?</h2>
           <form id="searchForm" class="search-form">
-            <label for="searchQuery">Title, author, topic, ISBN, or publisher</label>
-            <input id="searchQuery" type="search" placeholder="Try Tangerine, Praxis, gardening, Ian Rankin..." autocomplete="off" />
+            <fieldset id="searchControls" disabled>
+            <label for="searchQuery">Title, author, or topic</label>
+            <input id="searchQuery" type="search" placeholder="Try a title or gardening…" autocomplete="off" aria-describedby="searchHint" />
+            <p id="searchHint" class="note">You can also search by ISBN or publisher.</p>
 
             <div class="field-grid">
               <label>
-                ZIP code
+                ZIP code (optional)
                 <input id="zipCode" type="text" inputmode="numeric" pattern="[0-9]{5}(-[0-9]{4})?" placeholder="20877" />
               </label>
               <label>
@@ -86,10 +63,12 @@
             </div>
 
             <div class="button-row">
-              <button type="submit">Search atlas</button>
+              <button type="submit">Find books</button>
               <button type="button" id="useLocation" class="secondary">Use my location</button>
             </div>
-            <p id="locationStatus" class="note">Distance sorting works best with your ZIP code or browser location.</p>
+            </fieldset>
+            <p id="locationStatus" class="note" role="status">Add your location to find the closest matches.</p>
+            <button type="button" id="clearLocation" class="secondary" hidden>Search all locations</button>
           </form>
 
           <div class="quick-searches" aria-label="Quick searches">
@@ -100,28 +79,42 @@
             <button type="button" data-query="gardening">Gardening</button>
           </div>
 
-          <div id="results" class="results" aria-live="polite"></div>
+          <div id="results" class="results" aria-live="polite" aria-busy="true"><p class="note">Loading the book catalog…</p></div>
+          <button id="retryLoad" type="button" class="secondary" hidden>Retry loading</button>
         </section>
 
         <section class="panel map-panel" aria-labelledby="mapTitle">
           <div class="map-heading">
             <div>
-              <h2 id="mapTitle">Zoomable community map</h2>
-              <p class="section-intro">Markers are placed from photo GPS coordinates. Book libraries and other neighborhood exchange boxes use distinct marker styles by type.</p>
+              <h2 id="mapTitle" tabindex="-1">Library map</h2>
+              <p class="section-intro">Find a shelf to explore. Each marker is a community book, art, or pantry box.</p>
             </div>
-            <button type="button" id="fitMarkers" class="secondary compact">Fit markers</button>
+            <button type="button" id="fitMarkers" class="secondary compact" disabled>Show all</button>
           </div>
-          <div id="map" class="map" role="application" aria-label="Zoomable map of indexed mini libraries">
+          <div id="map" class="map" role="region" aria-label="Map of neighborhood libraries">
             <div class="map-loading">Loading map...</div>
           </div>
           <p id="mapStatus" class="note">Markers come from geolocated community-box records.</p>
-          <section id="databaseSummary" class="database-summary-card" aria-label="Top books and genres across the database"></section>
+          <p class="map-legend">Marker key: <strong>Number = cataloged books</strong> · <strong>A = art</strong> · <strong>P = pantry</strong><br />A shelf’s CSN is its permanent reference number, shown when you open its marker.</p>
+          <p class="snapshot-note"><span><strong id="libraryCount">—</strong> community boxes · <strong id="bookCount">—</strong> cataloged books</span><br /><span id="generatedAt">Loading snapshot…</span><br />Books may have moved since they were photographed.</p>
+          <details class="catalog-details">
+            <summary>Discover more from the catalog</summary>
+            <section id="databaseSummary" class="database-summary-card" aria-label="Top books and genres across the database"></section>
+          </details>
         </section>
+      </section>
+
+      <section id="allBooks" class="panel all-books-panel" aria-labelledby="allBooksTitle" hidden>
+        <h2 id="allBooksTitle" tabindex="-1">All Books</h2>
+        <p class="section-intro">Browse every cataloged book, sorted by title from A to Z, across all locations. Books may have moved since they were photographed.</p>
+        <div id="allBooksResults" class="results" aria-live="polite" aria-busy="true">Loading the book catalog…</div>
+        <button id="retryAllBooks" type="button" class="secondary" hidden>Retry loading</button>
       </section>
 
       <section id="contribute" class="panel contribute-panel" aria-labelledby="contributeTitle">
         <div>
-          <h2 id="contributeTitle">Found a mini library? Send or share two GPS-tagged photos.</h2>
+          <p class="eyebrow">Built by neighbors</p>
+          <h2 id="contributeTitle">Help someone find their next book.</h2>
           <p class="lede">
             Help grow the atlas by emailing photos of mini libraries you encounter to
             <a href="mailto:civitaslibrary@gmail.com?subject=Civitas%20Library%20photo%20contribution">civitaslibrary@gmail.com</a>.
@@ -157,7 +150,15 @@
         </div>
       </section>
 
-      <section id="developers" class="panel developer-panel" aria-labelledby="developersTitle">
+      <section id="about" class="panel about-panel" aria-labelledby="aboutTitle">
+        <h2 id="aboutTitle">Small shelves. A shared neighborhood.</h2>
+        <p>Civitas Library is a community catalog of mini libraries and neighborhood exchange boxes. Neighbors photograph shelves, and reviewed observations become a searchable snapshot. A listed book is a discovery to try, not a reservation.</p>
+        <p>Original photos stay private. Only small shelf icons appear in the public catalog. Have a correction? <a href="mailto:civitaslibrary@gmail.com?subject=Civitas%20Library%20correction">Let us know.</a></p>
+      </section>
+
+      <details id="developers" class="panel secondary-section">
+        <summary>For developers</summary>
+        <div class="developer-panel">
         <div class="developer-panel-header">
           <div>
             <p class="eyebrow">Developers</p>
@@ -223,12 +224,15 @@
             </div>
           </article>
         </div>
-      </section>
+        </div>
+      </details>
 
-      <section id="builderNotes" class="panel builder-notes-panel" aria-labelledby="builderNotesTitle">
+      <details id="builderNotes" class="panel secondary-section">
+        <summary>Notes from the builder</summary>
+        <div class="builder-notes-panel">
         <div class="builder-notes-header">
           <p class="eyebrow">Dated notes</p>
-          <h2 id="builderNotesTitle">A few Words from the Site Builder:</h2>
+          <h2 id="builderNotesTitle">Notes from the builder</h2>
           <p class="section-intro">
             Short project notes, release reflections, and invitations for neighbors who want to help make the atlas better.
           </p>
@@ -246,7 +250,14 @@
             </p>
           </div>
         </article>
-      </section>
+        </div>
+      </details>
+      <footer class="site-footer">
+        <span>Civitas Library · A community catalog</span>
+        <a href="#developers">Developers</a>
+        <a href="#builderNotes">Builder notes</a>
+        <a href="mailto:civitaslibrary@gmail.com">Contact</a>
+      </footer>
     </main>
 
     <script
@@ -254,6 +265,6 @@
       integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
       crossorigin=""
     ></script>
-    <script src="./app.js?v=release-20260525-pantry" defer></script>
+    <script src="./app.js?v=all-books-20261010" defer></script>
   </body>
 </html>
