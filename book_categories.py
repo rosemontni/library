@@ -86,16 +86,19 @@ def category_from_subjects(subjects):
     for pattern,category in [
         (r'\b(juvenile fiction|children.s fiction|picture books|children.s stories)\b','Children'),
         (r'\b(fantasy fiction|fantasy)\b','Fantasy'),
-        (r'\b(detective|mystery fiction|mystery and detective)\b','Mystery'),
+        (r'\b(detectives?|mystery fiction|mystery and detective)\b','Mystery'),
         (r'\b(science fiction)\b','Science Fiction'),
         (r'\b(fiction)\b','Fiction'),
-        (r'\b(education|universities|higher education and related services|academic advising)\b','Education'),
-        (r'\b(business|management|leadership|success)\b','Business'),
-        (r'\b(english language|business writing|authorship)\b','Writing & Language'),
+        (r'\b(communication in science|science communication|science news)\b','Science Communication'),
+        (r'nyt:childrens-middle-grade', 'Children'),
+        (r'\b(education|universities|higher education|academic advising)\b','Education'),
+        (r'\b(business|management|leadership|success|direct marketing|direct selling)\b','Business'),
+        (r'\b(english language|business writing|authorship|rhetoric|letter writing)\b','Writing & Language'),
+        (r'\b(reference|handbooks, manuals)\b','Reference'),
         (r'\b(sociology|social conditions|social sciences)\b','Social Sciences'),
         (r'\b(yoga|physical fitness)\b','Health & Fitness'),
         (r'\b(gardening|gardens|horticulture)\b','Gardening'),
-        (r'\b(christianity|christian life|bible)\b','Religion'),
+        (r'\b(christianity|christian life|bible|church renewal|eschatology|prophecies)\b','Religion'),
         (r'\b(art|artists|sculpture)\b','Art'),
         (r'\b(history)\b','History'),
     ]:
@@ -108,6 +111,7 @@ def match_category_documents(book, documents):
     def title_key(value):
         # Series labels are not needed for broad category matching.
         value=re.sub(r'\s*\([^)]*\)\s*$', '', value)
+        value=re.sub(r',\s*(the|a|an)$', '', value, flags=re.I)
         value=re.sub(r'^(the|a|an)\s+', '', value, flags=re.I)
         return normalized(value).replace(' ', '')
     title=title_key(book['title'])
@@ -125,7 +129,8 @@ def match_category_documents(book, documents):
     if not matches: return '', []
     categories=[category_from_subjects(doc.get('subject',[])) for doc in matches]
     if any(not category for category in categories): return '', []
-    genre=categories[0] if len(set(categories))==1 else ''
+    specific=set(categories)-{'Reference'}
+    genre=categories[0] if len(set(categories))==1 else (next(iter(specific)) if len(specific)==1 and set(categories)<=specific|{'Reference'} else '')
     if not genre and all(re.search(r'\bfiction\b',' | '.join(doc.get('subject',[])),re.I) for doc in matches): genre='Fiction'
     sources=['https://openlibrary.org'+doc['key'] for doc in matches if re.fullmatch(r'/works/OL\d+W',doc.get('key',''))]
     return (genre, sorted(set(sources))) if sources else ('', [])
