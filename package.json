@@ -1,0 +1,11 @@
+{
+  "name": "civitas-library-site-checks",
+  "private": true,
+  "scripts": {
+    "test:browser": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0",
+    "leaflet": "1.9.4"
+  }
+}

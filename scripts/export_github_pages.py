@@ -5,6 +5,7 @@ import json
 import os
 import re
 import sqlite3
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -13,6 +14,8 @@ from PIL import Image, ImageOps, UnidentifiedImageError
 
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT_DIR))
+from catalog_classification import ensure_classification_schema, public_classification
 DEFAULT_DB_PATH = ROOT_DIR / "data" / "little_library_atlas.db"
 DEFAULT_OUTPUT_PATH = ROOT_DIR / "docs" / "atlas-data.json"
 DEFAULT_ICON_DIR = Path(os.getenv("LIBRARY_ICONS_DIR", str(ROOT_DIR / "docs" / "library-icons")))
@@ -33,6 +36,7 @@ def ensure_column(connection: sqlite3.Connection, table: str, column: str, defin
 
 
 def ensure_export_schema(connection: sqlite3.Connection) -> None:
+    ensure_classification_schema(connection)
     ensure_column(connection, "books", "status", "TEXT NOT NULL DEFAULT 'active'")
     ensure_column(connection, "books", "last_seen_at", "TEXT")
     ensure_column(connection, "libraries", "box_type", "TEXT NOT NULL DEFAULT 'library'")
@@ -222,6 +226,8 @@ def load_books(connection: sqlite3.Connection) -> list[dict[str, Any]]:
         """
         SELECT
             id,
+            ddc_numbers, lcc_numbers, classification_status,
+            classification_sources, classification_checked_at,
             library_id,
             title,
             author,
@@ -244,6 +250,7 @@ def load_books(connection: sqlite3.Connection) -> list[dict[str, Any]]:
     return [
         {
             "id": int(row["id"]),
+            **public_classification(row),
             "library_id": int(row["library_id"]),
             "title": row["title"] or "",
             "author": row["author"] or "",

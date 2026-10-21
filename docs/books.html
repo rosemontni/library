@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>All Books · Civitas Library</title>
+  <meta name="description" content="Browse neighborhood books by Dewey and Library of Congress classification." />
+  <link rel="stylesheet" href="./styles.css?v=catalog-pages-20261020" />
+  <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+  <script src="./catalog-order.js?v=catalog-pages-20261020" defer></script>
+  <script src="./catalog.js?v=catalog-pages-20261020" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#allBooksTitle">Skip to catalog</a>
+  <main class="page-shell">
+    <div class="site-header">
+      <a class="brand-mark" href="./index.html" aria-label="Civitas Library home"><span>CL</span><strong>Civitas Library</strong></a>
+      <nav class="site-tabs" aria-label="Main navigation">
+        <a href="./index.html#searchTitle">Explore</a><a href="./books.html" aria-current="page">All Books</a><a href="./index.html#contribute">Contribute</a><a href="./index.html#about">About</a>
+      </nav>
+    </div>
+    <section class="panel all-books-panel" aria-labelledby="allBooksTitle">
+      <p class="eyebrow">Browse the shared shelves</p>
+      <h1 id="allBooksTitle" tabindex="-1">All Books</h1>
+      <p class="section-intro">Browse by Dewey, then LCC, with unclassified books listed last.</p>
+      <details class="catalog-order-note"><summary>About the order and availability</summary><p class="note">Numbers describe matched works; photographed editions and shelf labels are unverified. When several numbers are recorded, the lowest is used for browsing; all alternatives appear in Book details. Unclassified books are alphabetical. Books may have moved since they were photographed.</p></details>
+      <form id="catalogForm" class="catalog-filters" role="search">
+        <fieldset id="catalogControls" disabled>
+          <label>Find in catalog<input id="catalogQuery" type="search" placeholder="Title, author, topic, or call number" /></label>
+          <label>Classification<select id="catalogSystem"><option value="all">All books</option><option value="dewey">Dewey available</option><option value="lcc">LCC only</option><option value="review">Awaiting review</option></select></label>
+          <button type="submit">Filter books</button>
+        </fieldset>
+      </form>
+      <p id="catalogStatus" class="note" role="status">Loading the book catalog…</p>
+      <div id="allBooksResults" class="results" aria-live="polite" aria-busy="true"></div>
+      <nav class="catalog-pagination" aria-label="Catalog pages"><button id="previousPage" class="secondary" disabled>Previous</button><span id="pageNumber"></span><button id="nextPage" class="secondary" disabled>Next</button></nav>
+      <button id="retryAllBooks" type="button" class="secondary" hidden>Retry loading</button>
+    </section>
+    <footer class="site-footer"><span>Civitas Library · A community snapshot</span><a href="./index.html">Back to map and discoveries</a></footer>
+  </main>
+</body>
+</html>

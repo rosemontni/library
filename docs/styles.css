@@ -1293,3 +1293,20 @@ summary { cursor: pointer; padding: 0.75rem 0; font-weight: 700; color: var(--mo
   font-size: 0.78rem;
   color: var(--muted);
 }
+
+/* A compact home overview and a dedicated, paginated catalog. */
+.catalog-highlights { margin-top: 24px; }
+.catalog-highlights .database-summary-heading h2 { margin: 0; }
+.catalog-highlights .genre-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 12px; }
+.catalog-highlights .genre-summary-title { grid-column: 1 / -1; }
+.catalog-highlights .genre-group { align-self: start; min-width: 0; }
+.catalog-highlights .genre-heading { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.catalog-highlights .publication-item { overflow-wrap: anywhere; }
+.catalog-filters fieldset { display: flex; gap: 16px; align-items: end; flex-wrap: wrap; border: 0; margin: 24px 0; padding: 0; }
+.catalog-filters label { display: grid; gap: 8px; flex: 1 1 220px; min-width: 0; }
+.catalog-filters input, .catalog-filters select { width: 100%; min-height: 44px; }
+.catalog-group { margin: 24px 0 4px; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
+.catalog-call-number { font-weight: 700; color: var(--moss); }
+.catalog-map-link { display: inline-flex; align-items: center; min-height: 44px; }
+.catalog-pagination { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-top: 24px; }
+.site-tabs [aria-current="page"] { color: var(--rust-dark); text-decoration: underline; text-underline-offset: 0.3em; }

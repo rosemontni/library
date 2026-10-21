@@ -326,3 +326,9 @@ Use this checklist before any future "all clear" statement.
 - run the release checks
 - verify the deployment run
 - reconcile local and remote state if a fallback publish path was used
+
+### Classification lookups need title-and-author queries
+
+During the October 20 classification backfill, title-only OR queries returned more than 1,000 unrelated candidate works and were rejected before any classifications were saved. Recovery: constrain each query clause by both title and author, split broad batches, and require an exact normalized title-and-author match to a unique work. Prevention: never assign from truncated search results, retain source URLs and edition uncertainty, and leave broad or ambiguous matches for review.
+
+The first sandboxed browser check lost its localhost test-server connection while running 11 workers. Rerunning outside the sandbox with one worker passed all 11 phone checks; the classification-specific test then passed at desktop, 390px, and 360px widths. Treat connection-refused failures as a server/access diagnostic before changing site code.

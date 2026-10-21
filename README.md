@@ -188,3 +188,17 @@ Civitas Library is licensed under the [Apache License 2.0](LICENSE).
 ## On-site reading libraries
 
 Use `box_type: "reading_library"` for collections whose books must remain on site. These books are searchable, and the map and catalog identify the collection as “On-site Reading Library — books stay here.” Browser review includes this type; CLI metadata and API submissions accept it. Existing rows retain their types; the existing SQLite `box_type` column stores the new value without a destructive migration.
+
+## Dewey and Library of Congress classifications
+
+Books retain separate `ddc_numbers` and `lcc_numbers` lists, source record URLs, lookup timestamps, and a classification status. These are subject classifications from exact title-and-author matches in Open Library, not guaranteed edition-specific shelf call numbers. Multiple source values are retained rather than choosing an arbitrary edition. Unmatched books are explicitly marked for review; no number is invented from a title or genre.
+
+New records enter a persistent `pending` queue. The running server checks that queue in a background worker; CLI photo intake also attempts classification. Failed lookups leave records pending and never prevent a valid save. Changes to a book’s title, author, or ISBN clear stale classifications and queue a fresh lookup. Responses are cached locally and requests are batched. Removed books are included in classification backfills but remain absent from the public active-book catalog.
+
+Run or resume a complete backfill with `python scripts/classify_books.py`, then regenerate the public snapshot with `python scripts/export_github_pages.py`. Use `--retry-review` to clear cached unmatched results and retry review items after improving their metadata. Public and local search accept Dewey/LCC numbers, and book cards show source-backed values with their work-level qualification.
+
+## Catalog pages and quick discoveries
+
+The public landing page contains search, the map, newest/oldest publication highlights, and the three most frequently cataloged titles in each of the five largest categories. Frequency counts catalog observations, not readership. The complete inventory lives on `docs/books.html` with 24 books per page, title/author/topic/classification search, classification filters, and shelf-map links. Legacy `#allBooks` links redirect there.
+
+Browsing uses Dewey first, LCC when Dewey is absent, then unclassified titles alphabetically. Multiple classifications are retained; the lowest recorded number supplies the browse position. Decimal Dewey numbers and LCC Cutter numbers are compared as decimals. This does not claim that a photographed shelf has been physically arranged or labeled.

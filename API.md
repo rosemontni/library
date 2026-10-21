@@ -103,3 +103,7 @@ The OpenAPI document describes the public read endpoints and can be used by API 
 ## Privacy Notes
 
 Original phone photos are not exposed by this API. Public responses may include only derived shelf icons from `docs/library-icons`, library metadata, book metadata, and non-sensitive location labels. When an official Little Free Library registry match is available, the API returns the official address; otherwise it may return coordinates.
+
+## Book classifications
+
+Book search and shelf-book responses include `ddc_numbers` (Dewey), `lcc_numbers` (Library of Congress), `classification_status`, `classification_sources`, and `classification_checked_at`. Lists preserve multiple source values. Status is `pending`, `matched_work`, or `needs_review`. A `matched_work` is an exact title-and-author catalog match, not verification of the photographed edition or a physical shelf label. Search `q` also matches classification numbers.

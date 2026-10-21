@@ -1,3 +1,10 @@
+function classificationLabel(book) {
+  const labels = [];
+  if (book.ddc_numbers?.length) labels.push(`Dewey: ${book.ddc_numbers.join("; ")}`);
+  if (book.lcc_numbers?.length) labels.push(`LCC: ${book.lcc_numbers.join("; ")}`);
+  return labels.length ? `${labels.join(" · ")} (work-level match; edition unverified)` : (book.classification_status === "pending" ? "Classification lookup pending" : "Classification needs review");
+}
+
 const state = {
   captureLocation: null,
   searchLocation: null,
@@ -688,6 +695,7 @@ function renderSearchResults(results) {
         return `
           <li>
             <strong>${escapeHtml(book.title)}</strong>
+            <details><summary>Classifications</summary><p>${escapeHtml(classificationLabel(book))}</p></details>
             ${details ? `<span>${details}</span>` : ""}
           </li>
         `;

@@ -125,6 +125,12 @@ def ingest(args: argparse.Namespace) -> dict[str, Any]:
         latitude = payload["geolocation"]["latitude"]
         longitude = payload["geolocation"]["longitude"]
 
+    try:
+        app.enrich_pending(app.DB_PATH, limit=max(20, len(metadata["books"])))
+        app.refresh_pages_data()
+    except Exception as error:
+        print(f"Classification lookup deferred; books remain queued: {error}", file=sys.stderr)
+
     query = args.verify_query or metadata.get("verify_query")
     if not query and metadata["books"]:
         query = metadata["books"][0]["title"]

@@ -24,6 +24,7 @@ from typing import Any
 from urllib.parse import parse_qs, quote, urlparse
 
 from PIL import Image, ImageOps, UnidentifiedImageError
+from catalog_classification import ensure_classification_schema, public_classification, enrich_pending
 
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -35,7 +36,7 @@ MAP_OUTPUT_PATH = Path(os.getenv("LIBRARY_MAP_PATH", str(BASE_DIR / "assets" / "
 PAGES_DATA_PATH = Path(os.getenv("LIBRARY_PAGES_DATA_PATH", str(BASE_DIR / "docs" / "atlas-data.json")))
 LIBRARY_ICONS_DIR = Path(os.getenv("LIBRARY_ICONS_DIR", str(BASE_DIR / "docs" / "library-icons")))
 LIBRARY_ICON_SIZE = 144
-DATABASE_SCHEMA_VERSION = 3
+DATABASE_SCHEMA_VERSION = 4
 
 HOST = os.getenv("HOST", "127.0.0.1")
 PORT = int(os.getenv("PORT", "8000"))
@@ -464,6 +465,7 @@ def initialize_database() -> None:
             CREATE INDEX IF NOT EXISTS idx_review_decisions_run_id ON review_decisions(ingestion_run_id);
             """
         )
+        ensure_classification_schema(connection)
         ensure_schema_version(connection)
 
 
@@ -2255,6 +2257,8 @@ def search_books(
     sql = """
         SELECT
             b.id AS book_id,
+            b.ddc_numbers, b.lcc_numbers, b.classification_status,
+            b.classification_sources, b.classification_checked_at,
             b.title,
             b.author,
             b.isbn,
@@ -2288,8 +2292,8 @@ def search_books(
     where_clauses = ["COALESCE(b.status, 'active') = 'active'"]
     params: list[Any] = []
     for term in terms:
-        where_clauses.append("b.search_blob LIKE ?")
-        params.append(f"%{term}%")
+        where_clauses.append("(b.search_blob LIKE ? OR b.ddc_numbers LIKE ? OR b.lcc_numbers LIKE ?)")
+        params.extend([f"%{term}%"] * 3)
 
     if where_clauses:
         sql += " WHERE " + " AND ".join(where_clauses)
@@ -2317,6 +2321,7 @@ def search_books(
         results.append(
             {
                 "book_id": row["book_id"],
+                **public_classification(row),
                 "title": row["title"],
                 "author": row["author"],
                 "isbn": row["isbn"],
@@ -2369,6 +2374,8 @@ def list_library_books(library_id: int) -> list[dict[str, Any]]:
     sql = """
         SELECT
             id,
+            ddc_numbers, lcc_numbers, classification_status,
+            classification_sources, classification_checked_at,
             title,
             author,
             isbn,
@@ -2392,6 +2399,7 @@ def list_library_books(library_id: int) -> list[dict[str, Any]]:
     return [
         {
             "book_id": row["id"],
+            **public_classification(row),
             "title": row["title"],
             "author": row["author"],
             "isbn": row["isbn"],
@@ -2514,6 +2522,11 @@ def build_public_openapi_spec() -> dict[str, Any]:
         "type": "object",
         "properties": {
             "book_id": {"type": "integer"},
+            "ddc_numbers": {"type": "array", "items": {"type": "string"}},
+            "lcc_numbers": {"type": "array", "items": {"type": "string"}},
+            "classification_status": {"type": "string"},
+            "classification_sources": {"type": "array", "items": {"type": "string"}},
+            "classification_checked_at": {"type": "string"},
             "title": {"type": "string"},
             "author": {"type": "string"},
             "isbn": {"type": "string"},
@@ -3254,8 +3267,21 @@ class LibraryAtlasHandler(BaseHTTPRequestHandler):
             self.send_json({"error": f"Unexpected server error: {error}"}, HTTPStatus.INTERNAL_SERVER_ERROR)
 
 
+def classification_worker() -> None:
+    while True:
+        try:
+            count = enrich_pending(DB_PATH)
+            if count:
+                refresh_pages_data()
+        except Exception as error:
+            print(f"Classification lookup deferred: {error}")
+            count = 0
+        time.sleep(2 if count else 60)
+
+
 def run_server() -> None:
     initialize_database()
+    threading.Thread(target=classification_worker, daemon=True).start()
     server = ThreadingHTTPServer((HOST, PORT), LibraryAtlasHandler)
     print(f"Civitas Library running at http://{HOST}:{PORT}")
     try:

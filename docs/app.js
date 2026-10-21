@@ -1,3 +1,10 @@
+function classificationLabel(book) {
+  const labels = [];
+  if (book.ddc_numbers?.length) labels.push(`Dewey: ${book.ddc_numbers.join("; ")}`);
+  if (book.lcc_numbers?.length) labels.push(`LCC: ${book.lcc_numbers.join("; ")}`);
+  return labels.length ? `${labels.join(" · ")} (work-level match; edition unverified)` : (book.classification_status === "pending" ? "Classification lookup pending" : "Classification needs review");
+}
+
 const state = {
   data: null,
   librariesById: new Map(),
@@ -19,8 +26,6 @@ const elements = {
   locationStatus: document.getElementById("locationStatus"),
   quickSearches: Array.from(document.querySelectorAll("[data-query]")),
   results: document.getElementById("results"),
-  allBooksResults: document.getElementById("allBooksResults"),
-  retryAllBooks: document.getElementById("retryAllBooks"),
   map: document.getElementById("map"),
   mapStatus: document.getElementById("mapStatus"),
   fitMarkers: document.getElementById("fitMarkers"),
@@ -328,7 +333,7 @@ function renderGenreSummary(summary, title = "Top genres") {
                 <span>${formatCount(genre.count, "book")}</span>
               </div>
               <ol>
-                ${genre.books
+                ${genre.books.slice(0, 3)
                   .map(
                     (book) => `
                       <li>
@@ -388,13 +393,13 @@ function buildPublicationHighlights(books = []) {
 
 function bookShelfLabel(book) {
   const library = state.librariesById.get(book.library_id);
-  return library ? `${libraryCsn(library)} Â· ${library.name}${libraryBoxType(library) === "reading_library" ? " (read on site; books stay here)" : ""}` : "Unknown shelf";
+  return library ? `${libraryCsn(library)} · ${library.name}${libraryBoxType(library) === "reading_library" ? " (read on site; books stay here)" : ""}` : "Unknown shelf";
 }
 
 function renderPublicationList(title, subtitle, books, emptyMessage) {
   const rows = books
     .map((book) => {
-      const details = [book.author, primaryGenre(book.genre)].filter(Boolean).join(" Â· ");
+      const details = [book.author, primaryGenre(book.genre)].filter(Boolean).join(" · ");
       return `
         <li class="publication-item">
           <span class="publication-year">${book.parsed_year}</span>
@@ -437,6 +442,8 @@ function haversineMiles(lat1, lon1, lat2, lon2) {
 function bookSearchBlob(book) {
   return normalize([
     book.title,
+    ...(book.ddc_numbers || []),
+    ...(book.lcc_numbers || []),
     book.author,
     book.isbn,
     book.publisher,
@@ -568,9 +575,9 @@ function popupHtml(library) {
       <div class="popup-head">
         ${icon ? `<img class="popup-icon" src="${escapeHtml(icon)}" alt="${escapeHtml(library.name)} icon" />` : ""}
         <div>
-          <strong>${escapeHtml(csn)} Â· ${escapeHtml(library.name)}</strong>
+          <strong>${escapeHtml(csn)} · ${escapeHtml(library.name)}</strong>
           <p>${escapeHtml(library.description || "No description saved.")}</p>
-          <small><span class="popup-type">${escapeHtml(typeLabel)}</span> Â· ${escapeHtml(inventorySummary)} Â· ${escapeHtml(locationLabel)}</small>
+          <small><span class="popup-type">${escapeHtml(typeLabel)}</span> · ${escapeHtml(inventorySummary)} · ${escapeHtml(locationLabel)}</small>
         </div>
       </div>
       ${bookList ? `<ul class="popup-book-titles" aria-label="Book titles">${bookList}</ul>${Math.max(titles.length, Number(library.book_count) || 0) > 3 ? `<p class="popup-books-more">More books on this shelf</p>` : ""}` : ""}
@@ -647,7 +654,7 @@ function renderDatabaseSummary() {
     <div class="database-summary-heading">
       <div>
         <p class="eyebrow">Database overview</p>
-        <h3>Top genres across all mini libraries</h3>
+        <h2>Quick discoveries</h2>
       </div>
       <span>${formatCount(books.length, "book")}</span>
     </div>
@@ -657,21 +664,21 @@ function renderDatabaseSummary() {
     </div>
     <div class="publication-grid" aria-label="Publication-date highlights">
       ${renderPublicationList(
-        "Hot off the Press",
+        "Newest books · Hot off the Press",
         "Newest books with publication years in this snapshot.",
         publicationHighlights.newest,
         "No publication years are available yet for newest-book highlights."
       )}
       ${renderPublicationList(
-        "Dust-bound Wisdom",
+        "Oldest books · Dust-bound Wisdom",
         "Oldest books with publication years in this snapshot.",
         publicationHighlights.oldest,
         "No publication years are available yet for oldest-book highlights."
       )}
     </div>
     <div class="genre-chips" aria-label="Top genres across the database">${renderGenreChips(genreSummary)}</div>
-    ${renderGenreSummary(genreSummary, "Top 5 genres, top 5 books")}
-    <p class="note">Counts combine matching titles across every mini library in this public snapshot.</p>
+    ${renderGenreSummary(genreSummary, "Popular books by category")}
+    <p class="note">Top three titles in each of the five largest categories, ranked by how often they appear in the catalog, not by loans or readership. Newest and oldest refer to publication year.</p>
   `;
 }
 
@@ -709,6 +716,7 @@ function renderResults(results, query, container = elements.results, catalog = f
     card.innerHTML = `
       <div>
         <h3>${escapeHtml(book.title)}</h3>
+        <p class="classification">${book.ddc_numbers?.length || book.lcc_numbers?.length ? "Subject classifications available in Book details" : escapeHtml(classificationLabel(book))}</p>
         ${book.author ? `<p class="book-author">${escapeHtml(book.author)}</p>` : ""}
       </div>
       <div class="card-meta">
@@ -717,7 +725,9 @@ function renderResults(results, query, container = elements.results, catalog = f
       </div>
       ${library ? `<p>${escapeHtml(libraryLocationLabel(library))}</p>` : ""}
       <details class="book-details"><summary>Book details</summary>
+        <p>${escapeHtml(classificationLabel(book))}</p>
         <p>${escapeHtml([book.genre, book.publisher, book.published_year, book.format].filter(Boolean).join(" · ") || "No additional details yet.")}</p>
+        ${(book.classification_sources || []).filter(url => /^https:\/\/openlibrary\.org\/works\/OL\d+W$/.test(url)).map(url => `<p><a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">Classification source</a></p>`).join("")}
         ${book.isbn ? `<p>ISBN: ${escapeHtml(book.isbn)}</p>` : ""}
         ${library ? `<p>Shelf reference: ${escapeHtml(libraryCsn(library))}</p>` : ""}
         ${book.notes ? `<p>${escapeHtml(book.notes)}</p>` : ""}
@@ -747,17 +757,6 @@ function renderResults(results, query, container = elements.results, catalog = f
 
     container.appendChild(card);
   });
-}
-
-function renderAllBooks() {
-  if (!state.data || document.getElementById("allBooks").hidden) return;
-  const titles = new Intl.Collator("en", { sensitivity: "base", numeric: true });
-  const books = [...(state.data.books || [])].sort((a, b) =>
-    titles.compare(String(a.title || "").trim(), String(b.title || "").trim()) ||
-    titles.compare(String(a.author || ""), String(b.author || ""))
-  );
-  renderResults(books.map(book => ({ book, library: state.librariesById.get(book.library_id) })), "", elements.allBooksResults, true);
-  elements.allBooksResults.setAttribute("aria-busy", "false");
 }
 
 function runSearch() {
@@ -797,9 +796,6 @@ async function loadData() {
   elements.searchControls.disabled = true;
   elements.quickSearches.forEach(button => { button.disabled = true; });
   elements.retryLoad.hidden = true;
-  elements.retryAllBooks.hidden = true;
-  elements.allBooksResults.setAttribute("aria-busy", "true");
-  elements.allBooksResults.textContent = "Loading the book catalog…";
   elements.results.setAttribute("aria-busy", "true");
   elements.results.textContent = "Loading the book catalog…";
   const response = await fetch("./atlas-data.json", { cache: "no-store" });
@@ -816,8 +812,9 @@ async function loadData() {
   elements.generatedAt.textContent = formatGeneratedAt(state.data.generated_at);
 
   renderMap(state.data.libraries || []);
+  const linkedLibrary = Number(new URLSearchParams(window.location.search).get("library"));
+  if (linkedLibrary && state.librariesById.has(linkedLibrary)) focusLibrary(linkedLibrary);
   renderDatabaseSummary();
-  renderAllBooks();
   renderResults([], "");
   elements.searchControls.disabled = false;
   elements.quickSearches.forEach(button => { button.disabled = false; });
@@ -874,21 +871,16 @@ function showLoadError() {
   elements.map.innerHTML = `<div class="map-loading">Could not load the atlas snapshot.</div>`;
   elements.results.innerHTML = `<div class="empty-state">We couldn't load the book catalog. Check your connection and try again.</div>`;
   elements.results.setAttribute("aria-busy", "false");
-  elements.allBooksResults.textContent = "We couldn’t load the book catalog. Check your connection and try again.";
-  elements.allBooksResults.setAttribute("aria-busy", "false");
-  elements.retryAllBooks.hidden = false;
   elements.generatedAt.textContent = "Snapshot unavailable";
   elements.retryLoad.hidden = false;
 }
 
 function revealLinkedSection() {
-  document.getElementById("allBooks").hidden = window.location.hash !== "#allBooks";
-  renderAllBooks();
+  if (window.location.hash === "#allBooks") { window.location.replace("./books.html"); return; }
   const target = document.getElementById(window.location.hash.slice(1));
   if (target?.tagName === "DETAILS") target.open = true;
 }
 window.addEventListener("hashchange", revealLinkedSection);
 revealLinkedSection();
-elements.retryAllBooks.addEventListener("click", () => { loadData().catch(showLoadError); });
 elements.retryLoad.addEventListener("click", () => { loadData().catch(showLoadError); });
 loadData().catch(showLoadError);
