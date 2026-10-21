@@ -8,6 +8,7 @@ import unicodedata
 import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
+from book_categories import fill_missing_categories, match_category_documents, apply_category
 
 FIELDS = ("ddc_numbers", "lcc_numbers", "classification_status", "classification_sources", "classification_checked_at")
 
@@ -83,11 +84,11 @@ def match_classification(book, documents):
         classification_sources=sources)
 
 
-def fetch_documents(books):
+def fetch_documents(books, fields="key,title,author_name,ddc,lcc,subject"):
     def quoted(value):
         return '"' + re.sub(r'["\\]', ' ', value) + '"'
     query = ' OR '.join('(title:' + quoted(book['title']) + ' AND author:' + quoted(book['author']) + ')' for book in books)
-    params = dict(q='(' + query + ')', fields='key,title,author_name,ddc,lcc', limit=100)
+    params = dict(q='(' + query + ')', fields=fields, limit=100)
     docs = []
     for offset in range(0, 1000, 100):
         params['offset'] = offset
@@ -101,9 +102,9 @@ def fetch_documents(books):
                 return []  # Too broad to establish a safe match.
             midpoint = len(books) // 2
             time.sleep(1.05)
-            first = fetch_documents(books[:midpoint])
+            first = fetch_documents(books[:midpoint], fields)
             time.sleep(1.05)
-            return first + fetch_documents(books[midpoint:])
+            return first + fetch_documents(books[midpoint:], fields)
         docs.extend(data.get('docs', []))
         if offset + 100 >= data.get('numFound', data.get('num_found', 0)):
             return docs
@@ -132,16 +133,25 @@ def enrich_pending(db_path, limit=20, fetcher=fetch_documents):
         connection.commit()
         documents = fetcher(list({(row['title'], row['author']): dict(row) for row in uncached}.values())) if uncached else []
         now = datetime.now(timezone.utc).isoformat(timespec='seconds')
+        fill_missing_categories(connection)
         for row in rows:
             result = cached.get(row['id']) or match_classification(row, documents)
+            if row['id'] not in cached:
+                category, sources = match_category_documents(dict(row), documents)
+                if category:
+                    result['category'] = category
+                    result['category_sources'] = sources
             # Recheck identity: metadata could have changed while the network request ran.
             connection.execute("""UPDATE books SET ddc_numbers=?, lcc_numbers=?, classification_status=?,
                 classification_sources=?, classification_checked_at=?
                 WHERE id=? AND title=? AND COALESCE(author,'')=? AND COALESCE(isbn,'')=? AND classification_status='pending'""",
                 (json.dumps(result['ddc_numbers']), json.dumps(result['lcc_numbers']), result['classification_status'],
                  json.dumps(result['classification_sources']), now, row['id'], row['title'], row['author'] or '', row['isbn'] or ''))
+            if result.get('category'):
+                apply_category(connection, dict(row), result['category'], 'Matched catalog subjects', json.dumps(result.get('category_sources', [])))
             key = normalized(row['title']) + '|' + normalized(row['author'])
             connection.execute('INSERT OR REPLACE INTO classification_cache VALUES(?,?,?)', (key, json.dumps(result), now))
+        fill_missing_categories(connection)
         connection.commit()
         return len(rows)
     finally:

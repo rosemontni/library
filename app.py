@@ -24,6 +24,7 @@ from typing import Any
 from urllib.parse import parse_qs, quote, urlparse
 
 from PIL import Image, ImageOps, UnidentifiedImageError
+from book_categories import fill_missing_categories
 from catalog_classification import ensure_classification_schema, public_classification, enrich_pending
 
 
@@ -1941,6 +1942,9 @@ def upsert_library_inventory(
         if not identity or identity in seen_identities:
             continue
         seen_identities.add(identity)
+        existing = existing_by_identity.get(identity)
+        if existing and not book["genre"]:
+            book["genre"] = existing["genre"] or ""
         book_last_seen_at = normalize_seen_value(book.get("last_seen_at")) or now
         search_blob = build_search_blob(
             book["title"],
@@ -2200,6 +2204,7 @@ def insert_library(payload: dict[str, Any]) -> int:
         if icon_path:
             connection.execute("UPDATE libraries SET icon_path = ? WHERE id = ?", (icon_path, library_id))
         upsert_library_inventory(connection, library_id, sanitized_books, replace_inventory)
+        fill_missing_categories(connection, library_id)
 
     refresh_library_map()
     refresh_pages_data()

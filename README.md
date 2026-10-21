@@ -202,3 +202,7 @@ Run or resume a complete backfill with `python scripts/classify_books.py`, then 
 The public landing page contains search, the map, newest/oldest publication highlights, and the three most frequently cataloged titles in each of the five largest categories. Frequency counts catalog observations, not readership. The complete inventory lives on `docs/books.html` with 24 books per page, title/author/topic/classification search, classification filters, and shelf-map links. Legacy `#allBooks` links redirect there.
 
 Browsing uses Dewey first, LCC when Dewey is absent, then unclassified titles alphabetically. Multiple classifications are retained; the lowest recorded number supplies the browse position. Decimal Dewey numbers and LCC Cutter numbers are compared as decimals. This does not claim that a photographed shelf has been physically arranged or labeled.
+
+## Completing missing categories
+
+Blank categories are filled from explicit subject titles, consistent Dewey subjects, or matching Open Library work subjects. Assignments and their evidence are recorded in the private SQLite `book_category_assignments` table; existing reviewed genres take precedence. Blank intake updates preserve existing genres. New intake and classification enrichment run conservative category completion. Ambiguous books remain blank, show “Category: Needs review” in catalog details, and are excluded from popular-category highlights. `python scripts/complete_book_categories.py` performs an optional cached subject lookup for remaining gaps.

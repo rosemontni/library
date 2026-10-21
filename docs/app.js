@@ -278,6 +278,7 @@ function buildGenreSummary(books = []) {
 
   books
     .forEach((book) => {
+      if (!String(book.genre || "").trim() || /^(uncategorized|unknown|category needs review)$/i.test(String(book.genre).trim())) return;
       const genreName = primaryGenre(book.genre);
       const title = String(book.title || "Untitled").trim() || "Untitled";
       if (!genres.has(genreName)) {

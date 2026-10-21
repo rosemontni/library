@@ -52,7 +52,8 @@ function catalogCard(book) {
     <p>${escapeHtml(locationLabel)}</p>
     <details class="book-details"><summary>Book details</summary>
       <p>${escapeHtml(classificationLabel(book))}</p>
-      <p>${escapeHtml([book.genre, book.publisher, book.published_year, book.format].filter(Boolean).join(" · "))}</p>
+      <p>Category: ${escapeHtml(book.genre || "Needs review")}</p>
+      <p>${escapeHtml([book.publisher, book.published_year, book.format].filter(Boolean).join(" · "))}</p>
       ${book.isbn ? `<p>ISBN: ${escapeHtml(book.isbn)}</p>` : ""}
       ${sourceLinks.map(url => `<p><a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">Classification source</a></p>`).join("")}
       ${book.notes ? `<p>${escapeHtml(book.notes)}</p>` : ""}

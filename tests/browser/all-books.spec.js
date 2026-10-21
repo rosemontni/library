@@ -65,6 +65,7 @@ test('home shows newest and oldest publication highlights and category frequency
     { id: 1, library_id: 1, title: 'Recent Book', genre: 'Nature', published_year: '2024' },
     { id: 2, library_id: 1, title: 'Historic Book', genre: 'Nature', published_year: '1800' },
     { id: 3, library_id: 1, title: 'Recent Book', genre: 'Nature', published_year: '2024' },
+    { id: 4, library_id: 1, title: 'No category', genre: '' },
   ];
   await controlledSite(page, { data: { ...fixture, books } });
   await page.goto('/');
@@ -76,4 +77,6 @@ test('home shows newest and oldest publication highlights and category frequency
   await expect(highlights.locator('.genre-group li').first()).toContainText('Recent Book');
   await expect(highlights.locator('.genre-group li').first().locator('b')).toHaveText('2');
   await expect(highlights).toContainText('not by loans or readership');
+  await expect(highlights).not.toContainText('Uncategorized');
+  await expect(highlights).not.toContainText('No category');
 });
