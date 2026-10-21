@@ -84,6 +84,10 @@ CATEGORY_MARKERS = {
 DEFAULT_BOX_TYPE = "library"
 BOX_TYPE_ALIASES = {
     "library": "library",
+    "reading library": "reading_library",
+    "read only library": "reading_library",
+    "read-only library": "reading_library",
+    "on-site reading library": "reading_library",
     "little library": "library",
     "little free library": "library",
     "book exchange": "library",
@@ -102,6 +106,7 @@ BOX_TYPE_ALIASES = {
 }
 BOX_TYPE_LABELS = {
     "library": "Little Library",
+    "reading_library": "On-site Reading Library — books stay here",
     "art_gallery": "Little Art Gallery",
     "free_pantry": "Little Free Pantry",
 }
@@ -204,7 +209,7 @@ Do not invent books that are not visible.
 If you are unsure, keep a field blank and lower the confidence.
 Only include books that are visibly present in the photo.
 Do not guess an ISBN unless it is clearly visible or highly reliable from the exact edition clues.
-Use box_type = "library" for book-sharing boxes, "art_gallery" for little art galleries or similar art exchanges, and "free_pantry" for little free pantries or similar mutual-aid food boxes.
+Use box_type = "reading_library" for on-site reading collections whose books must stay, "library" for book-sharing boxes, "art_gallery" for little art galleries or similar art exchanges, and "free_pantry" for little free pantries or similar mutual-aid food boxes.
 Use concise phrases.
 """
 
@@ -215,7 +220,7 @@ Return JSON with:
 - library_description: one or two sentences describing the library setup and condition
 - photo_summary: a plain-language summary of what is in the image
 - place_clues: visible clues such as street signs, murals, house numbers, nearby businesses, or neighborhood hints
-- box_type: "library" for book-sharing shelves, "art_gallery" for little art galleries / free art exchanges, or "free_pantry" for little free pantries / food-sharing boxes
+- box_type: "reading_library" for on-site reading shelves (books stay here), "library" for book-sharing shelves, "art_gallery" for little art galleries / free art exchanges, or "free_pantry" for little free pantries / food-sharing boxes
 - charter_number: the Little Free Library charter number if visible, usually near a "Charter #" label; otherwise blank
 - books: the visible books with metadata fields title, author, isbn, publisher, published_year, genre, format, condition, confidence, notes
 
@@ -2264,6 +2269,7 @@ def search_books(
             b.search_blob,
             l.id AS library_id,
             l.name AS library_name,
+            COALESCE(l.box_type, 'library') AS box_type,
             l.description AS library_description,
             l.latitude,
             l.longitude,
@@ -2326,6 +2332,8 @@ def search_books(
                     "id": row["library_id"],
                     "csn": f"CSN-{row['library_id']}",
                     "name": row["library_name"],
+                    "box_type": normalize_box_type(row["box_type"]),
+                    "box_type_label": box_type_label(row["box_type"]),
                     "description": row["library_description"],
                     "latitude": row["latitude"],
                     "longitude": row["longitude"],

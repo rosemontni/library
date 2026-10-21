@@ -184,3 +184,7 @@ The GitHub banner image is [assets/github-banner.png](assets/github-banner.png).
 ## License
 
 Civitas Library is licensed under the [Apache License 2.0](LICENSE).
+
+## On-site reading libraries
+
+Use `box_type: "reading_library"` for collections whose books must remain on site. These books are searchable, and the map and catalog identify the collection as “On-site Reading Library — books stay here.” Browser review includes this type; CLI metadata and API submissions accept it. Existing rows retain their types; the existing SQLite `box_type` column stores the new value without a destructive migration.

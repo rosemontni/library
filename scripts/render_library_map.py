@@ -17,6 +17,7 @@ DEFAULT_OUTPUT_PATH = ROOT_DIR / "assets" / "library-map.svg"
 DEFAULT_BOX_TYPE = "library"
 BOX_TYPE_LABELS = {
     "library": "Little Library",
+    "reading_library": "On-site Reading Library — books stay here",
     "art_gallery": "Little Art Gallery",
     "free_pantry": "Little Free Pantry",
 }
@@ -57,6 +58,8 @@ class LibraryPoint:
 
     @property
     def inventory_label(self) -> str:
+        if self.box_type == "reading_library":
+            return f"{self.book_count} books · read on site; books stay here"
         if self.box_type == "art_gallery":
             return "art exchange"
         if self.box_type == "free_pantry":

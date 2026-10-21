@@ -93,6 +93,7 @@ const LOCAL_ZIP_CENTROIDS = Object.freeze({
 });
 
 const BOX_TYPE_META = Object.freeze({
+  reading_library: { label: "On-site Reading Library — books stay here", markerLabel: () => "R" },
   library: { label: "Little Library", markerLabel: (library) => String(Number(library?.book_count || 0)) },
   art_gallery: { label: "Little Art Gallery", markerLabel: () => "A" },
   free_pantry: { label: "Little Free Pantry", markerLabel: () => "P" },
@@ -138,6 +139,9 @@ function libraryMarkerLabel(library) {
 }
 
 function libraryInventorySummary(library) {
+  if (libraryBoxType(library) === "reading_library") {
+    return `${formatCount(library?.book_count, "book")} · Read here; please leave books on site`;
+  }
   if (libraryBoxType(library) === "art_gallery") {
     return "Art exchange";
   }
@@ -699,6 +703,7 @@ function renderSearchResults(results) {
       <div class="result-head">
         <div>
           <h3 class="result-title">${escapeHtml(libraryCsn(group.library))} Â· ${escapeHtml(group.library.name)}</h3>
+          <p>${escapeHtml(libraryTypeLabel(group.library))}</p>
           <p>${escapeHtml(group.library.description || "No library description saved yet.")}</p>
         </div>
         <span class="distance-pill">${escapeHtml(distanceLabel)}</span>

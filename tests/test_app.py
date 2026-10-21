@@ -50,7 +50,7 @@ def plain_jpeg_bytes(color: str = "gray") -> bytes:
 
 class AppTests(unittest.TestCase):
     def test_failed_ai_preserves_manual_box_type(self) -> None:
-        for box_type in ('free_pantry', 'art_gallery'):
+        for box_type in ('free_pantry', 'art_gallery', 'reading_library'):
             with self.subTest(box_type=box_type):
                 merged = app.merge_analysis_into_draft({'box_type': box_type}, None)
                 self.assertEqual(merged['box_type'], box_type)

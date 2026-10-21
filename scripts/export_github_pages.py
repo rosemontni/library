@@ -20,6 +20,7 @@ ICON_SIZE = 144
 DEFAULT_BOX_TYPE = "library"
 BOX_TYPE_LABELS = {
     "library": "Little Library",
+    "reading_library": "On-site Reading Library — books stay here",
     "art_gallery": "Little Art Gallery",
     "free_pantry": "Little Free Pantry",
 }

@@ -78,6 +78,8 @@ def build_payload(image_path: Path, metadata: dict[str, Any], photo_path: str) -
         )
 
     return {
+        "box_type": app.normalize_box_type(metadata.get("box_type")),
+        "captured_at": metadata.get("captured_at"),
         "library_name": metadata.get("library_name") or image_path.stem,
         "library_description": metadata.get("library_description") or "",
         "photo_path": photo_path,
