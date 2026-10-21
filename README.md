@@ -6,6 +6,10 @@ Civitas Library catalogs neighborhood mini-libraries from photos and makes nearb
 
 The database is the source of truth. The GitHub Pages site publishes a searchable public snapshot, while the local web app and Android app support capture, review, and sync workflows. Contributors can also send photos by email or share them through Google Photos for later intake.
 
+## Project handoff
+
+Read [PROJECT_NOTES.md](PROJECT_NOTES.md) for the October 20, 2026 work record, published state, remaining review queues, and unfinished local work. Agent workflow guidance is in [AGENTS.md](AGENTS.md).
+
 ## Current library map
 
 ![Map of indexed Civitas Library locations](assets/library-map.svg)
